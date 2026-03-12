@@ -1,2 +1,2 @@
-# pioneer-team-backend
-pioneer-team-backend
+# stock-supporters-backend
+stock-supporters-backend
