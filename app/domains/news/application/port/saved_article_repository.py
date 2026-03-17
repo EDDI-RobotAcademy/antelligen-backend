@@ -10,5 +10,9 @@ class SavedArticleRepository(ABC):
         pass
 
     @abstractmethod
+    async def find_by_id(self, article_id: int) -> SavedArticle | None:
+        pass
+
+    @abstractmethod
     async def find_by_link(self, link: str) -> SavedArticle | None:
         pass

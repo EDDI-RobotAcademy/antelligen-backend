@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.response.base_response import BaseResponse
 from app.domains.news.adapter.outbound.external.article_content_scraper import (
     ArticleContentScraper,
+)
+from app.domains.news.adapter.outbound.external.openai_article_analysis_provider import (
+    OpenAIArticleAnalysisProvider,
 )
 from app.domains.news.adapter.outbound.external.serp_news_search_provider import (
     SerpNewsSearchProvider,
@@ -15,11 +18,17 @@ from app.domains.news.application.request.save_article_request import (
     SaveArticleRequest,
 )
 from app.domains.news.application.request.search_news_request import SearchNewsRequest
+from app.domains.news.application.response.analyze_article_response import (
+    AnalyzeArticleResponse,
+)
 from app.domains.news.application.response.save_article_response import (
     SaveArticleResponse,
 )
 from app.domains.news.application.response.search_news_response import (
     SearchNewsResponse,
+)
+from app.domains.news.application.usecase.analyze_article_usecase import (
+    AnalyzeArticleUseCase,
 )
 from app.domains.news.application.usecase.save_article_usecase import (
     SaveArticleUseCase,
@@ -58,5 +67,20 @@ async def save_article(
     content_provider = ArticleContentScraper()
     usecase = SaveArticleUseCase(repository=repository, content_provider=content_provider)
     result = await usecase.execute(request)
+
+    return BaseResponse.ok(data=result)
+
+
+@router.get("/analyze/{article_id}", response_model=BaseResponse[AnalyzeArticleResponse])
+async def analyze_article(
+    article_id: int = Path(..., ge=1, description="분석할 기사 ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """저장된 기사의 핵심 키워드와 감정 분석 결과를 반환한다."""
+    settings = get_settings()
+    repository = SavedArticleRepositoryImpl(db)
+    analysis_provider = OpenAIArticleAnalysisProvider(api_key=settings.openai_api_key)
+    usecase = AnalyzeArticleUseCase(repository=repository, analysis_provider=analysis_provider)
+    result = await usecase.execute(article_id)
 
     return BaseResponse.ok(data=result)

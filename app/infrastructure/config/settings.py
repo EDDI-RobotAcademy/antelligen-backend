@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     naver_client_secret: str
 
     anthropic_api_key: str
+    openai_api_key: str
 
     serp_api_key: str
 

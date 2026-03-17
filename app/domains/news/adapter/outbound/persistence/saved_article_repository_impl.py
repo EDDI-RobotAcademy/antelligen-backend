@@ -24,6 +24,14 @@ class SavedArticleRepositoryImpl(SavedArticleRepository):
         await self._db.refresh(orm)
         return SavedArticleMapper.to_entity(orm)
 
+    async def find_by_id(self, article_id: int) -> SavedArticle | None:
+        stmt = select(SavedArticleOrm).where(SavedArticleOrm.id == article_id)
+        result = await self._db.execute(stmt)
+        orm = result.scalar_one_or_none()
+        if orm is None:
+            return None
+        return SavedArticleMapper.to_entity(orm)
+
     async def find_by_link(self, link: str) -> SavedArticle | None:
         link_hash = hashlib.sha256(link.encode()).hexdigest()
         stmt = select(SavedArticleOrm).where(SavedArticleOrm.link_hash == link_hash)
