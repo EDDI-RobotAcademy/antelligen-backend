@@ -18,11 +18,15 @@ from app.domains.stock.application.port.stock_data_standardizer import (
 from app.domains.stock.application.response.stock_collection_response import (
     StockBasicInformationResponse,
     StockCollectionResponse,
+    StockDartFinancialRatioResponse,
     StockDocumentChunkResponse,
     StockIngestionReadyDataResponse,
     StockCollectionMetadataResponse,
     StockFinancialInformationResponse,
     StockVectorStoreResultResponse,
+)
+from app.domains.stock.application.usecase.fetch_dart_financial_ratios_usecase import (
+    FetchDartFinancialRatiosUseCase,
 )
 from app.domains.stock.domain.entity.stock_vector_document import StockVectorDocument
 
@@ -38,6 +42,7 @@ class CollectStockDataUseCase:
         stock_document_chunker: StockDocumentChunker,
         stock_embedding_generator: StockEmbeddingGenerator,
         stock_vector_repository: StockVectorRepository,
+        dart_financial_ratios_usecase: FetchDartFinancialRatiosUseCase | None = None,
     ):
         self._stock_repository = stock_repository
         self._stock_data_collector = stock_data_collector
@@ -45,6 +50,7 @@ class CollectStockDataUseCase:
         self._stock_document_chunker = stock_document_chunker
         self._stock_embedding_generator = stock_embedding_generator
         self._stock_vector_repository = stock_vector_repository
+        self._dart_financial_ratios_usecase = dart_financial_ratios_usecase
 
     async def execute(self, ticker: str) -> StockCollectionResponse:
         stock = await self._stock_repository.find_by_ticker(ticker)
@@ -164,6 +170,27 @@ class CollectStockDataUseCase:
                 for chunk in chunk_entities
             ]
 
+        # DART 재무비율 조회 (선택적)
+        dart_financial_ratios = None
+        if self._dart_financial_ratios_usecase:
+            try:
+                dart_result = await self._dart_financial_ratios_usecase.execute(
+                    ticker=collected_data.ticker
+                )
+                if dart_result:
+                    dart_financial_ratios = StockDartFinancialRatioResponse(
+                        roe=dart_result.roe,
+                        roa=dart_result.roa,
+                        debt_ratio=dart_result.debt_ratio,
+                        fiscal_year=dart_result.fiscal_year,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "[Stock Collect] DART 재무비율 조회 실패 - ticker=%s error=%s",
+                    collected_data.ticker,
+                    str(e),
+                )
+
         return StockCollectionResponse(
             ticker=collected_data.ticker,
             stock_name=collected_data.stock_name,
@@ -187,6 +214,7 @@ class CollectStockDataUseCase:
             ),
             basic_information=basic_information,
             financial_information=financial_information,
+            dart_financial_ratios=dart_financial_ratios,
             document_text=collected_data.document_text,
             document_chunks=document_chunks,
             vector_store_result=vector_store_result,

@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__/
+*.py[cod]
+*.log
+.env
+mysql_data/
+redis_data/
+pgdata/
+.claude/
+.omc/
+docs/
+test_main.http

@@ -27,6 +27,14 @@ class StockFinancialInformationResponse(BaseModel):
     dividend_yield: str | None = None
 
 
+class StockDartFinancialRatioResponse(BaseModel):
+    """DART 재무비율 정보"""
+    roe: float | None = None  # 자기자본이익률 (%)
+    roa: float | None = None  # 총자산이익률 (%)
+    debt_ratio: float | None = None  # 부채비율 (%)
+    fiscal_year: str | None = None
+
+
 class StockIngestionReadyDataResponse(BaseModel):
     entity_id: str
     source: str
@@ -61,6 +69,7 @@ class StockCollectionResponse(BaseModel):
     ingestion_ready_data: StockIngestionReadyDataResponse
     basic_information: StockBasicInformationResponse | None = None
     financial_information: StockFinancialInformationResponse | None = None
+    dart_financial_ratios: StockDartFinancialRatioResponse | None = None
     document_text: str | None = None
     document_chunks: list[StockDocumentChunkResponse]
     vector_store_result: StockVectorStoreResultResponse

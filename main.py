@@ -10,11 +10,13 @@ from app.domains.authentication.adapter.inbound.api.authentication_router import
 from app.common.exception.global_exception_handler import register_exception_handlers
 from app.infrastructure.config.settings import Settings, get_settings
 from app.infrastructure.database.database import AsyncSessionLocal, Base, engine
+from app.infrastructure.database.vector_database import VectorBase, vector_engine
 
 import app.domains.account.infrastructure.orm.account_orm  # noqa: F401
 import app.domains.news.infrastructure.orm.saved_article_orm  # noqa: F401
 import app.domains.board.infrastructure.orm.board_orm  # noqa: F401
 import app.domains.post.infrastructure.orm.post_orm  # noqa: F401
+import app.domains.stock.infrastructure.orm.stock_vector_document_orm  # noqa: F401
 import app.domains.stock_theme.infrastructure.orm.stock_theme_orm  # noqa: F401
 
 settings: Settings = get_settings()
@@ -24,6 +26,9 @@ settings: Settings = get_settings()
 async def lifespan(application: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    async with vector_engine.begin() as conn:
+        await conn.run_sync(VectorBase.metadata.create_all)
 
     async with AsyncSessionLocal() as session:
         await SeedStockThemesUseCase(StockThemeRepositoryImpl(session)).execute()

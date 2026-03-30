@@ -14,6 +14,10 @@ class FrontendAgentResultItem(BaseModel):
     data: Optional[dict[str, Any]] = None
     error_message: Optional[str] = None
     execution_time_ms: int
+    signal: Optional[str] = None
+    confidence: Optional[float] = None
+    summary: Optional[str] = None
+    key_points: Optional[list[str]] = None
 
 
 class FrontendAgentResponse(BaseModel):
@@ -32,6 +36,10 @@ class FrontendAgentResponse(BaseModel):
                 data=r.data,
                 error_message=r.error_message,
                 execution_time_ms=r.execution_time_ms,
+                signal=r.signal.value if r.signal else None,
+                confidence=r.confidence,
+                summary=r.summary,
+                key_points=r.key_points,
             )
             for r in response.agent_results
         ]

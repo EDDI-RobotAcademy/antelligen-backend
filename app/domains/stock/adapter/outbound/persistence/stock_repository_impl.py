@@ -21,3 +21,20 @@ class StockRepositoryImpl(StockRepository):
                         market=row["market"],
                     )
         return None
+
+    async def find_by_company_name(self, company_name: str) -> Optional[Stock]:
+        normalized_query = self._normalize(company_name)
+
+        with open(CSV_PATH, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if self._normalize(row["stock_name"]) == normalized_query:
+                    return Stock(
+                        ticker=row["ticker"],
+                        stock_name=row["stock_name"],
+                        market=row["market"],
+                    )
+        return None
+
+    def _normalize(self, value: str) -> str:
+        return "".join(value.strip().lower().split())

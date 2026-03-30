@@ -9,3 +9,7 @@ class StockRepository(ABC):
     @abstractmethod
     async def find_by_ticker(self, ticker: str) -> Optional[Stock]:
         pass
+
+    @abstractmethod
+    async def find_by_company_name(self, company_name: str) -> Optional[Stock]:
+        pass
