@@ -14,3 +14,7 @@ kiwipiepy>=0.17.0
 numpy>=2.0.0
 pgvector>=0.3.0
 apscheduler>=3.10.0
+langchain>=0.3.0
+langchain-openai>=0.3.0
+langgraph>=0.3.0
+langsmith>=0.2.0

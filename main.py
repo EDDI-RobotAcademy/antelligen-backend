@@ -12,6 +12,7 @@ from app.domains.authentication.adapter.inbound.api.authentication_router import
 from app.common.exception.global_exception_handler import register_exception_handlers
 from app.infrastructure.config.settings import Settings, get_settings
 from app.infrastructure.config.logging_config import setup_logging
+from app.infrastructure.config.langsmith_config import configure_langsmith
 from app.infrastructure.database.database import AsyncSessionLocal, Base, engine
 
 import app.domains.account.infrastructure.orm.account_orm  # noqa: F401
@@ -28,6 +29,7 @@ import app.domains.disclosure.infrastructure.orm.collection_job_item_orm  # noqa
 import app.domains.disclosure.infrastructure.orm.rag_document_chunk_orm  # noqa: F401
 
 setup_logging()
+configure_langsmith()
 
 settings: Settings = get_settings()
 

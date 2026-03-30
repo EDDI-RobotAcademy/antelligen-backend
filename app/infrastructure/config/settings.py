@@ -38,6 +38,10 @@ class Settings(BaseSettings):
 
     open_dart_api_key: str = ""
 
+    langchain_api_key: str = ""
+    langchain_project: str = "disclosure-analysis"
+    langchain_tracing_v2: bool = False
+
     analysis_api_finance_url: Optional[str] = None
     analysis_api_timeout_seconds: float = 10.0
 
