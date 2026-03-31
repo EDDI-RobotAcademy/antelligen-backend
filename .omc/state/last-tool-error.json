@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"D:/Documents/simsys/ai_agent_edu_dev/stock-supporters-backend\\\" && uv pip install openai && python -c \\\"\\nfrom app.infrastructure.external.llm_client_port import LlmClientPort\\nfrom a...",
-  "error": "Exit code 1\nAudited 1 package in 297ms\nTraceback (most recent call last):\r\n  File \"<string>\", line 3, in <module>\r\n    from app.infrastructure.external.openai_llm_client import OpenAILlmClient, get_openai_llm_client\r\n  File \"D:\\Documents\\simsys\\ai_agent_edu_dev\\stock-supporters-backend\\app\\infrastructure\\external\\openai_llm_client.py\", line 3, in <module>\r\n    from openai import AsyncOpenAI\r\nModuleNotFoundError: No module named 'openai'",
-  "timestamp": "2026-03-30T11:52:26.135Z",
-  "retry_count": 3
-}

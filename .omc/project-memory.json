@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1774867424321,
+  "lastScanned": 1774958560034,
   "projectRoot": "D:\\Documents\\simsys\\ai_agent_edu_dev\\stock-supporters-backend",
   "techStack": {
     "languages": [
@@ -48,7 +48,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 1,
-      "lastAccessed": 1774867424250,
+      "lastAccessed": 1774958559966,
       "keyFiles": [
         "__init__.py"
       ]
@@ -57,7 +57,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1774867424251,
+      "lastAccessed": 1774958559967,
       "keyFiles": [
         "agent_schema.md"
       ]
@@ -66,259 +66,12 @@
       "path": "__pycache__",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1774867424251,
+      "lastAccessed": 1774958559967,
       "keyFiles": [
         "main.cpython-313.pyc"
       ]
     }
   },
-  "hotPaths": [
-    {
-      "path": "main.py",
-      "accessCount": 7,
-      "lastAccessed": 1774867993836,
-      "type": "file"
-    },
-    {
-      "path": "app\\adapter\\inbound\\api\\v1_router.py",
-      "accessCount": 4,
-      "lastAccessed": 1774867948375,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\adapter\\inbound\\api\\stock_theme_router.py",
-      "accessCount": 4,
-      "lastAccessed": 1774871932433,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\domain\\service\\noun_extractor.py",
-      "accessCount": 3,
-      "lastAccessed": 1774867682604,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\application\\usecase\\extract_nouns_usecase.py",
-      "accessCount": 3,
-      "lastAccessed": 1774867682863,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\response\\stock_recommendation_response.py",
-      "accessCount": 3,
-      "lastAccessed": 1774871907740,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\usecase\\recommend_stocks_usecase.py",
-      "accessCount": 3,
-      "lastAccessed": 1774871918801,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\infrastructure\\orm\\video_comment_orm.py",
-      "accessCount": 2,
-      "lastAccessed": 1774867836986,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\infrastructure\\mapper\\video_comment_mapper.py",
-      "accessCount": 2,
-      "lastAccessed": 1774867837407,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\adapter\\outbound\\persistence\\video_comment_repository_impl.py",
-      "accessCount": 2,
-      "lastAccessed": 1774867837801,
-      "type": "file"
-    },
-    {
-      "path": "app\\infrastructure\\database\\database.py",
-      "accessCount": 2,
-      "lastAccessed": 1774867957526,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\domain\\entity\\stock_theme.py",
-      "accessCount": 2,
-      "lastAccessed": 1774868700726,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\port\\out\\stock_theme_repository_port.py",
-      "accessCount": 2,
-      "lastAccessed": 1774868701551,
-      "type": "file"
-    },
-    {
-      "path": "app\\infrastructure\\config\\settings.py",
-      "accessCount": 2,
-      "lastAccessed": 1774871449156,
-      "type": "file"
-    },
-    {
-      "path": "",
-      "accessCount": 2,
-      "lastAccessed": 1774871537689,
-      "type": "directory"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\domain\\service\\stock_recommender.py",
-      "accessCount": 2,
-      "lastAccessed": 1774871861189,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\application\\response\\noun_frequency_response.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867626669,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\domain\\service\\synonym_table.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867662551,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\infrastructure\\orm\\collected_video_orm.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867790491,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\infrastructure\\mapper\\collected_video_mapper.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867791115,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\adapter\\outbound\\persistence\\collected_video_repository_impl.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867791578,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\application\\port\\out\\video_comment_repository_port.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867796099,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\application\\port\\out\\collected_video_repository_port.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867796786,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock\\infrastructure\\orm\\stock_vector_document_orm.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867797375,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock\\adapter\\outbound\\persistence\\stock_repository_impl.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867797523,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\domain\\entity\\video_comment.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867801981,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\domain\\entity\\collected_video.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867802174,
-      "type": "file"
-    },
-    {
-      "path": "app\\infrastructure\\database\\vector_database.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867802525,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock\\adapter\\inbound\\api\\stock_router.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867812964,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\market_video\\adapter\\inbound\\api\\market_video_router.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867813009,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\domain\\service\\stock_theme_seed_data.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867907381,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\response\\stock_theme_response.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867914783,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\usecase\\get_stock_themes_usecase.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867916889,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\usecase\\seed_stock_themes_usecase.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867919076,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\infrastructure\\orm\\stock_theme_orm.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867927414,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\infrastructure\\mapper\\stock_theme_mapper.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867929557,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\adapter\\outbound\\persistence\\stock_theme_repository_impl.py",
-      "accessCount": 1,
-      "lastAccessed": 1774867932932,
-      "type": "file"
-    },
-    {
-      "path": "app\\domains\\stock_theme\\application\\request\\recommend_stocks_request.py",
-      "accessCount": 1,
-      "lastAccessed": 1774868734918,
-      "type": "file"
-    },
-    {
-      "path": "app\\infrastructure\\external\\llm_client_port.py",
-      "accessCount": 1,
-      "lastAccessed": 1774871469790,
-      "type": "file"
-    },
-    {
-      "path": "app\\infrastructure\\external\\openai_llm_client.py",
-      "accessCount": 1,
-      "lastAccessed": 1774871472166,
-      "type": "file"
-    },
-    {
-      "path": "requirements.txt",
-      "accessCount": 1,
-      "lastAccessed": 1774871598933,
-      "type": "file"
-    }
-  ],
+  "hotPaths": [],
   "userDirectives": []
 }
