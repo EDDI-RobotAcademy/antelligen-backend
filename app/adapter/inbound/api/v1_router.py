@@ -18,6 +18,8 @@ from app.domains.market_video.adapter.inbound.api.market_video_router import rou
 from app.domains.post.adapter.inbound.api.post_router import router as post_router
 from app.domains.stock.adapter.inbound.api.stock_router import router as stock_router
 from app.domains.stock_theme.adapter.inbound.api.stock_theme_router import router as stock_theme_router
+from app.domains.market_analysis.adapter.inbound.api.market_analysis_router import router as market_analysis_router
+from app.domains.news.adapter.inbound.api.news_collect_router import router as news_collect_router
 
 # 모든 API는 /api/v1 prefix를 가진다.
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -34,5 +36,7 @@ api_v1_router.include_router(news_router)        # NEWS: /api/v1/news/...
 api_v1_router.include_router(auth_router)        # AUTH: /api/v1/auth/...
 api_v1_router.include_router(kakao_auth_router)  # KAKAO AUTH: /api/v1/kakao-authentication/...
 api_v1_router.include_router(account_router)     # ACCOUNT: /api/v1/account/...
+api_v1_router.include_router(market_analysis_router)  # MARKET ANALYSIS: /api/v1/market-analysis/...
+api_v1_router.include_router(news_collect_router)    # NEWS COLLECT: /api/v1/news/collect
 # api_v1_router.include_router(finance_router)  # 재무 에이전트
 # api_v1_router.include_router(disclosure_router)  # 공시 에이전트

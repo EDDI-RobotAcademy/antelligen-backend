@@ -1,0 +1,28 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: stock_supporters_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: eddi@123
+      MYSQL_DATABASE: multi_agent_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: pgvector_db
+    restart: "no"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vectordb
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  mysql_data:
+  pgdata:
