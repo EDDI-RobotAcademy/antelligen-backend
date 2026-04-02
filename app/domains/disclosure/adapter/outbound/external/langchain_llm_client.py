@@ -8,7 +8,7 @@ from app.infrastructure.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
-ANALYSIS_MODEL = "gpt-4.1-nano"
+ANALYSIS_MODEL = "gpt-5-mini"
 MAX_TOKENS = 4096
 
 

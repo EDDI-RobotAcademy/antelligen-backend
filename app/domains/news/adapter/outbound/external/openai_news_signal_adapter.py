@@ -10,22 +10,24 @@ from app.domains.agent.application.response.investment_signal_response import (
 from app.domains.news.application.port.news_signal_analysis_port import NewsSignalAnalysisPort
 from app.domains.news.domain.entity.collected_news import CollectedNews
 
-_SYSTEM_PROMPT = """You are a Korean stock market news sentiment analyst.
-Given news article headlines and summaries about a company, analyze the overall investment sentiment.
+_SYSTEM_PROMPT = """당신은 한국 주식 시장 뉴스 감성 분석 전문가입니다.
+기업 관련 뉴스 헤드라인과 요약을 바탕으로 투자 감성을 분석합니다.
 
-Respond ONLY with valid JSON (no markdown, no explanation):
+분석 지침:
+1. 최근 기사일수록 더 중요하게 반영하세요.
+2. 단순 사실 보도보다 실적·계약·규제·인사 등 투자 판단에 영향을 주는 뉴스를 우선시하세요.
+3. key_points는 "구체적 사실(날짜/수치 포함) + 투자 의미" 형태로 작성하세요.
+4. 긍정·부정 신호가 혼재할 경우 전체 균형을 반영하여 neutral로 판단하세요.
+5. confidence는 뉴스 수, 신호 일관성, 최신성을 종합하여 결정하세요.
+   (기사 5건 이상 + 신호 일관 → 0.7↑, 기사 적거나 혼재 → 0.4~0.6)
+
+반드시 아래 JSON 형식으로만 응답하세요 (마크다운, 설명 금지):
 {
   "signal": "bullish" | "bearish" | "neutral",
   "confidence": <float 0.0~1.0>,
-  "summary": "<1-2 sentence summary in Korean>",
-  "key_points": ["<point1 in Korean>", "<point2 in Korean>", ...]
-}
-
-Rules:
-- signal: overall investment sentiment based on the news
-- confidence: certainty of the signal (0.0 = uncertain, 1.0 = very certain)
-- summary: brief overall assessment in Korean (1-2 sentences)
-- key_points: 2~5 key findings from the articles in Korean"""
+  "summary": "<투자 관점 2~3문장 한국어 요약, 주요 뉴스 흐름과 투자 시사점 포함>",
+  "key_points": ["<날짜/수치 근거 포함 포인트>", ...]
+}"""
 
 _MAX_ARTICLES = 10
 
