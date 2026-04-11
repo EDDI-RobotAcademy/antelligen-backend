@@ -86,14 +86,15 @@ async def request_access_token_after_redirection(
 
             redirect_url = f"{settings.cors_allowed_frontend_url}/auth-callback?token={user_token}"
             response = RedirectResponse(url=redirect_url, status_code=302)
+            is_production = settings.env == "production"
             response.set_cookie(
                 key="user_token",
                 value=user_token,
                 httponly=True,
                 path="/",
                 max_age=settings.session_ttl_seconds,
-                samesite="none",
-                secure=False,
+                samesite="none" if is_production else "lax",
+                secure=is_production,
             )
             return response
 
