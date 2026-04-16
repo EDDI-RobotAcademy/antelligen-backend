@@ -17,10 +17,12 @@ class YoutubeSearchClient(YoutubeSearchPort):
     async def search(
         self,
         page_token: Optional[str] = None,
+        keyword: Optional[str] = None,
     ) -> tuple[list[YoutubeVideo], Optional[str], Optional[str], int]:
+        effective_keyword = keyword if keyword else SEARCH_KEYWORD
         params = {
             "key": self._api_key,
-            "q": SEARCH_KEYWORD,
+            "q": effective_keyword,
             "part": "snippet",
             "type": "video",
             "maxResults": PAGE_SIZE,

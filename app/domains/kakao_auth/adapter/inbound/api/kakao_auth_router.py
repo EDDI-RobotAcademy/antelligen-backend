@@ -84,7 +84,7 @@ async def request_access_token_after_redirection(
             )
             user_token = await token_cache.issue_user_token(account_id=account_lookup.account_id)
 
-            redirect_url = f"{settings.cors_allowed_frontend_url}/auth-callback?token={user_token}"
+            redirect_url = f"{settings.cors_allowed_frontend_url}/auth-callback"
             response = RedirectResponse(url=redirect_url, status_code=302)
             is_production = settings.env == "production"
             response.set_cookie(
@@ -109,7 +109,7 @@ async def request_access_token_after_redirection(
 
         logger.info("[임시 토큰 발급] 발급 완료 — token prefix: %s...", temp_token.token[:8])
 
-        redirect_url = f"{settings.cors_allowed_frontend_url}/auth-callback?token={temp_token.token}"
+        redirect_url = f"{settings.cors_allowed_frontend_url}/auth-callback"
         response = RedirectResponse(url=redirect_url, status_code=302)
         response.set_cookie(
             key="temp_token",

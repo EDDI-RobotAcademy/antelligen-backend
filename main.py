@@ -39,6 +39,11 @@ import app.domains.disclosure.infrastructure.orm.collection_job_orm  # noqa: F40
 import app.domains.disclosure.infrastructure.orm.collection_job_item_orm  # noqa: F401
 import app.domains.disclosure.infrastructure.orm.rag_document_chunk_orm  # noqa: F401
 import app.domains.agent.infrastructure.orm.integrated_analysis_orm  # noqa: F401
+import app.domains.investment.infrastructure.orm.investment_youtube_log_orm  # noqa: F401
+import app.domains.investment.infrastructure.orm.investment_youtube_video_orm  # noqa: F401
+import app.domains.investment.infrastructure.orm.investment_youtube_video_comment_orm  # noqa: F401
+import app.domains.investment.infrastructure.orm.investment_news_content_orm  # noqa: F401
+import app.domains.news.infrastructure.orm.investment_news_orm  # noqa: F401
 
 setup_logging()
 configure_langsmith()

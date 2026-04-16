@@ -62,15 +62,12 @@ router = APIRouter(prefix="/agent", tags=["Agent"])
 
 
 async def _require_auth(request: Request, redis: aioredis.Redis) -> None:
-    """쿼리 파라미터 → 쿠키 → Authorization 헤더 순으로 토큰을 확인합니다."""
-    token = (
-        request.query_params.get("token")
-        or request.cookies.get("user_token")
-        or (
-            request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-            or None
-        )
-    )
+    """쿠키 → Authorization 헤더 순으로 토큰을 확인합니다."""
+    token = request.cookies.get("user_token")
+    if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.removeprefix("Bearer ").strip() or None
     if not token:
         raise AppException(status_code=401, message="인증이 필요합니다.")
     if not await redis.get(f"{SESSION_KEY_PREFIX}{token}"):

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     postgres_db: str
     debug: bool = False
 
+
+
     naver_client_id: str
     naver_client_secret: str
 

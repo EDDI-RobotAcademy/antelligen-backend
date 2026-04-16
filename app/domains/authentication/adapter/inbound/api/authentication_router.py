@@ -1,7 +1,7 @@
 from typing import Optional
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exception.app_exception import AppException
@@ -18,17 +18,12 @@ router = APIRouter(prefix="/authentication", tags=["authentication"])
 @router.get("/me")
 async def get_me(
     request: Request,
-    token_param: Optional[str] = Query(default=None, alias="token"),
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),
 ):
-    # 쿼리 파라미터 우선 추출 (?token=)
-    token = token_param
-
     # Cookie에서 추출 (temp_token → user_token 순서)
-    if not token:
-        token = request.cookies.get("temp_token") or request.cookies.get("user_token")
+    token = request.cookies.get("temp_token") or request.cookies.get("user_token")
 
     # Authorization 헤더에서 추출
     if not token and authorization and authorization.startswith("Bearer "):
