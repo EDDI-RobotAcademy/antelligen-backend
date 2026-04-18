@@ -26,7 +26,7 @@
 | Python | 3.13 이상 |
 | Docker Desktop | 실행 중 |
 | PostgreSQL 컨테이너 | `pgvector_db` 포트 5433 |
-| MySQL 컨테이너 | `stock_supporters_mysql` 포트 3307 |
+| MySQL 컨테이너 | `antelligen_mysql` 포트 3307 |
 
 ### Docker 컨테이너 시작
 
