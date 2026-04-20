@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     analysis_api_finance_url: Optional[str] = None
     analysis_api_timeout_seconds: float = 10.0
     openai_finance_agent_model: str = "gpt-5-mini"
+    openai_learning_model: str = "gpt-5-mini"
     openai_embedding_model: str = "text-embedding-3-small"
     finance_rag_top_k: int = 3
     finance_analysis_cache_ttl_seconds: int = 3600

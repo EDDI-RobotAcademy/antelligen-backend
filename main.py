@@ -89,6 +89,16 @@ async def lifespan(application: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).error("Nasdaq bootstrap failed (server continues normally): %s", str(e))
 
+    # 거시 경제 리스크 스냅샷 최초 로딩 (이후 매일 새벽 1시에 스케줄러가 갱신)
+    from app.infrastructure.scheduler.macro_jobs import job_refresh_market_risk
+
+    try:
+        await job_refresh_market_risk()
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            "Macro snapshot bootstrap failed (server continues normally): %s", str(e)
+        )
+
     from app.infrastructure.scheduler.disclosure_scheduler import create_disclosure_scheduler
 
     scheduler = create_disclosure_scheduler()
