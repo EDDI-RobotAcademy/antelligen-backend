@@ -49,6 +49,36 @@ from app.infrastructure.config.settings import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _fallback_finance_data(ticker: str) -> dict:
+    """프론트가 .stock_name 에 접근해도 에러가 나지 않도록 최소 필드를 채운 플레이스홀더."""
+    return {
+        "ticker": ticker,
+        "stock_name": None,
+        "market": None,
+        "current_price": None,
+        "currency": None,
+        "market_cap": None,
+        "pe_ratio": None,
+        "dividend_yield": None,
+        "roe": None,
+        "roa": None,
+        "debt_ratio": None,
+        "fiscal_year": None,
+    }
+
+
+def _no_data_with_ticker(ticker: str, elapsed: int) -> SubAgentResponse:
+    base = SubAgentResponse.no_data("finance", elapsed)
+    base.data = _fallback_finance_data(ticker)
+    return base
+
+
+def _error_with_ticker(ticker: str, message: str, elapsed: int) -> SubAgentResponse:
+    base = SubAgentResponse.error("finance", message, elapsed)
+    base.data = _fallback_finance_data(ticker)
+    return base
+
+
 class FinanceSubAgentAdapter(FinanceAgentPort):
     """재무 분석 UseCase를 호출하는 아웃바운드 어댑터.
 
@@ -95,12 +125,17 @@ class FinanceSubAgentAdapter(FinanceAgentPort):
 
             elapsed = int((time.monotonic() - start) * 1000)
             if result.agent_results:
-                return result.agent_results[0]
-            return SubAgentResponse.no_data("finance", elapsed)
+                sub = result.agent_results[0]
+                # 성공 결과라도 data 가 None 인 경우 프론트의 .stock_name 접근 실패를 방지한다.
+                if sub.data is None:
+                    sub.data = _fallback_finance_data(ticker)
+                return sub
+            return _no_data_with_ticker(ticker, elapsed)
 
         except Exception as exc:
             elapsed = int((time.monotonic() - start) * 1000)
-            return SubAgentResponse.error("finance", str(exc), elapsed)
+            logger.exception("[FinanceSubAgent] ticker=%s 분석 실패: %s", ticker, exc)
+            return _error_with_ticker(ticker, str(exc), elapsed)
 
     @staticmethod
     async def _collect(ticker: str, settings) -> None:

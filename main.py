@@ -44,6 +44,7 @@ import app.domains.investment.infrastructure.orm.investment_youtube_video_orm  #
 import app.domains.investment.infrastructure.orm.investment_youtube_video_comment_orm  # noqa: F401
 import app.domains.investment.infrastructure.orm.investment_news_content_orm  # noqa: F401
 import app.domains.news.infrastructure.orm.investment_news_orm  # noqa: F401
+import app.domains.schedule.infrastructure.orm.economic_event_orm  # noqa: F401
 
 setup_logging()
 configure_langsmith()
@@ -80,7 +81,7 @@ async def lifespan(application: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).error("News bootstrap failed (server continues normally): %s", str(e))
 
-    # 거시 경제 리스크 스냅샷 최초 로딩 (이후 매일 새벽 1시에 스케줄러가 갱신)
+    # 거시 경제 리스크 스냅샷 최초 로딩 (이후 매일 새벽 5시에 스케줄러가 갱신)
     from app.infrastructure.scheduler.macro_jobs import job_refresh_market_risk
 
     try:
@@ -88,6 +89,16 @@ async def lifespan(application: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).error(
             "Macro snapshot bootstrap failed (server continues normally): %s", str(e)
+        )
+
+    # 잠정실적 일정 최초 적재 (이후 분기 초 + 주간으로 스케줄러가 재수집)
+    from app.infrastructure.scheduler.corp_earnings_jobs import job_refresh_corp_earnings
+
+    try:
+        await job_refresh_corp_earnings()
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            "Corp earnings bootstrap failed (server continues normally): %s", str(e)
         )
 
     from app.infrastructure.scheduler.disclosure_scheduler import create_disclosure_scheduler
