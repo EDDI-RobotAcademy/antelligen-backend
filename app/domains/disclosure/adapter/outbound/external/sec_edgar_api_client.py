@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -13,6 +15,11 @@ _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 _FILING_VIEWER_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type={form}&dateb=&owner=include&count=10"
 
 _DEFAULT_FORM_TYPES = ["8-K", "10-K", "10-Q"]
+_TICKER_CACHE_TTL_SECONDS = 86400  # 24h
+
+_ticker_cache: dict[str, int] = {}
+_ticker_cache_expires_at: float = 0.0
+_ticker_cache_lock = asyncio.Lock()
 
 
 class SecEdgarApiClient(ForeignDisclosureApiPort):
@@ -20,7 +27,19 @@ class SecEdgarApiClient(ForeignDisclosureApiPort):
 
     def __init__(self, user_agent: str) -> None:
         # SEC EDGAR requires a User-Agent identifying the requester
-        self._headers = {"User-Agent": user_agent, "Accept": "application/json"}
+        # 참고: example.com / 빈 문자열은 SEC 차단 대상. .env에 실제 이메일 포함 권장.
+        self._headers = {
+            "User-Agent": user_agent,
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+            "Host": "www.sec.gov",
+        }
+        self._submissions_headers = {
+            "User-Agent": user_agent,
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+            "Host": "data.sec.gov",
+        }
 
     async def fetch_recent_filings(
         self,
@@ -74,26 +93,55 @@ class SecEdgarApiClient(ForeignDisclosureApiPort):
         return results
 
     async def _resolve_cik(self, ticker: str) -> Optional[int]:
-        try:
-            async with httpx.AsyncClient(headers=self._headers, timeout=10) as client:
-                resp = await client.get(_TICKERS_URL)
-                resp.raise_for_status()
-                data = resp.json()
-            upper = ticker.upper()
-            for entry in data.values():
-                if entry.get("ticker", "").upper() == upper:
-                    return int(entry["cik_str"])
-        except Exception as e:
-            logger.warning("[SEC EDGAR] CIK lookup failed for %s: %s", ticker, e)
-        return None
+        upper = ticker.upper()
+        cache = await self._get_or_fetch_ticker_cache()
+        if cache is None:
+            return None
+        cik = cache.get(upper)
+        if cik is None:
+            logger.warning("[SEC EDGAR] ticker '%s' not in company_tickers.json", ticker)
+        return cik
+
+    async def _get_or_fetch_ticker_cache(self) -> Optional[dict[str, int]]:
+        global _ticker_cache, _ticker_cache_expires_at
+        now = time.monotonic()
+        if _ticker_cache and now < _ticker_cache_expires_at:
+            return _ticker_cache
+
+        async with _ticker_cache_lock:
+            # double-check inside lock
+            now = time.monotonic()
+            if _ticker_cache and now < _ticker_cache_expires_at:
+                return _ticker_cache
+            try:
+                async with httpx.AsyncClient(headers=self._headers, timeout=30) as client:
+                    resp = await client.get(_TICKERS_URL)
+                    resp.raise_for_status()
+                    data = resp.json()
+                new_cache: dict[str, int] = {}
+                for entry in data.values():
+                    sym = entry.get("ticker", "").upper()
+                    if sym:
+                        new_cache[sym] = int(entry["cik_str"])
+                _ticker_cache = new_cache
+                _ticker_cache_expires_at = time.monotonic() + _TICKER_CACHE_TTL_SECONDS
+                logger.info("[SEC EDGAR] ticker cache primed (%d entries)", len(new_cache))
+                return _ticker_cache
+            except Exception as e:
+                logger.warning(
+                    "[SEC EDGAR] ticker list fetch failed: %s (%s) — "
+                    "SEC may be blocking this User-Agent. Set a real email in SEC_EDGAR_USER_AGENT.",
+                    e, type(e).__name__,
+                )
+                return None
 
     async def _fetch_submissions(self, cik: int) -> Optional[dict]:
         url = _SUBMISSIONS_URL.format(cik=cik)
         try:
-            async with httpx.AsyncClient(headers=self._headers, timeout=15) as client:
+            async with httpx.AsyncClient(headers=self._submissions_headers, timeout=30) as client:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 return resp.json()
         except Exception as e:
-            logger.warning("[SEC EDGAR] submissions fetch failed for CIK=%d: %s", cik, e)
+            logger.warning("[SEC EDGAR] submissions fetch failed for CIK=%d: %s (%s)", cik, e, type(e).__name__)
         return None
