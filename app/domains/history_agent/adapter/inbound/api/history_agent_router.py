@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from datetime import date
 from typing import Optional
 
 import redis.asyncio as aioredis
@@ -19,6 +20,9 @@ from app.domains.history_agent.application.request.title_request import TitleBat
 from app.domains.history_agent.application.response.anomaly_bar_response import (
     AnomalyBarsResponse,
 )
+from app.domains.history_agent.application.response.anomaly_causality_response import (
+    AnomalyCausalityResponse,
+)
 from app.domains.history_agent.application.response.timeline_response import TimelineResponse
 from app.domains.history_agent.application.response.title_response import TitleBatchResponse
 from app.domains.history_agent.application.usecase.collect_important_macro_events_usecase import (
@@ -30,12 +34,16 @@ from app.domains.history_agent.application.usecase.detect_anomaly_bars_usecase i
 from app.domains.history_agent.application.usecase.generate_titles_usecase import (
     GenerateTitlesUseCase,
 )
+from app.domains.history_agent.application.usecase.get_anomaly_causality_usecase import (
+    GetAnomalyCausalityUseCase,
+)
 from app.domains.history_agent.application.usecase.history_agent_usecase import HistoryAgentUseCase
 from app.domains.dashboard.adapter.outbound.external.yahoo_finance_stock_client import (
     YahooFinanceStockClient,
     normalize_chart_interval,
 )
 from app.domains.history_agent.di import (
+    get_anomaly_causality_usecase,
     get_collect_important_macro_events_usecase,
     get_fred_macro_port,
     get_generate_titles_usecase,
@@ -402,6 +410,25 @@ async def get_anomaly_bars(
     ticker = normalize_yfinance_ticker(ticker.upper())
     usecase = DetectAnomalyBarsUseCase(stock_bars_port=YahooFinanceStockClient())
     result = await usecase.execute(ticker=ticker, chart_interval=effective)
+    return BaseResponse.ok(data=result)
+
+
+@router.get(
+    "/anomaly-bars/{ticker}/{bar_date}/causality",
+    response_model=BaseResponse[AnomalyCausalityResponse],
+)
+async def get_anomaly_causality(
+    ticker: str,
+    bar_date: date,
+    usecase: GetAnomalyCausalityUseCase = Depends(get_anomaly_causality_usecase),
+):
+    """이상치 봉 1건의 causality(인과 가설)를 lazy-fetch한다.
+
+    프론트 차트 ★ 마커 클릭 시 호출. DB 캐시 히트면 즉시 반환, 미스면 causality
+    agent 워크플로우를 실행하고 결과를 저장한다.
+    """
+    ticker_norm = normalize_yfinance_ticker(ticker.upper())
+    result = await usecase.execute(ticker=ticker_norm, bar_date=bar_date)
     return BaseResponse.ok(data=result)
 
 

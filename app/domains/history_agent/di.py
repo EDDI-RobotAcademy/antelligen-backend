@@ -57,6 +57,9 @@ from app.domains.history_agent.application.usecase.collect_important_macro_event
 from app.domains.history_agent.application.usecase.generate_titles_usecase import (
     GenerateTitlesUseCase,
 )
+from app.domains.history_agent.application.usecase.get_anomaly_causality_usecase import (
+    GetAnomalyCausalityUseCase,
+)
 from app.domains.history_agent.application.usecase.history_agent_usecase import HistoryAgentUseCase
 from app.infrastructure.cache.redis_client import get_redis
 from app.infrastructure.database.database import get_db
@@ -176,6 +179,14 @@ def get_generate_titles_usecase(
     db: AsyncSession = Depends(get_db),
 ) -> GenerateTitlesUseCase:
     return GenerateTitlesUseCase(
+        enrichment_repo=EventEnrichmentRepositoryImpl(db),
+    )
+
+
+def get_anomaly_causality_usecase(
+    db: AsyncSession = Depends(get_db),
+) -> GetAnomalyCausalityUseCase:
+    return GetAnomalyCausalityUseCase(
         enrichment_repo=EventEnrichmentRepositoryImpl(db),
     )
 
