@@ -35,7 +35,12 @@ class DartDocumentApiClient(DartDocumentApiPort):
         # DART API가 에러를 XML로 반환하는 경우 처리
         if "application/xml" in content_type or "text/xml" in content_type:
             error_text = response.text
-            logger.error("DART 문서 API 오류 응답: rcept_no=%s, response=%s", rcept_no, error_text)
+            # status=014 ("파일이 존재하지 않습니다") 는 DART에서 삭제·이관된 공시에 대한
+            # 정상 응답이므로 INFO 로 격하한다.
+            if "<status>014</status>" in error_text:
+                logger.info("DART 문서 없음(삭제/이관): rcept_no=%s", rcept_no)
+            else:
+                logger.error("DART 문서 API 오류 응답: rcept_no=%s, response=%s", rcept_no, error_text)
             raise RuntimeError(f"DART 문서 API 오류: {error_text}")
 
         # ZIP 파일에서 텍스트 추출

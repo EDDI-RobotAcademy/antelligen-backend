@@ -75,10 +75,17 @@ class ProcessDisclosureDocumentsUseCase:
                 )
             except Exception as e:
                 failed += 1
-                logger.error(
-                    "[문서처리] 실패: rcept_no=%s, %s",
-                    disclosure.rcept_no, e,
-                )
+                # DART status=014 (파일 없음) 은 삭제·이관된 공시라 영구 실패가 정상 — INFO 로 격하한다.
+                if "<status>014</status>" in str(e):
+                    logger.info(
+                        "[문서처리] 스킵(파일 없음): rcept_no=%s",
+                        disclosure.rcept_no,
+                    )
+                else:
+                    logger.error(
+                        "[문서처리] 실패: rcept_no=%s, %s",
+                        disclosure.rcept_no, e,
+                    )
 
         message = f"문서 처리 완료: {processed}건 성공, {failed}건 실패, 청크 {chunks_stored}건 저장"
         logger.info("[문서처리] %s", message)
