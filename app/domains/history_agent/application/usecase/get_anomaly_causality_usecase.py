@@ -1,6 +1,6 @@
 import logging
 from datetime import date, timedelta
-from typing import List
+from typing import List, Optional
 
 from app.domains.history_agent.application.port.out.event_enrichment_repository_port import (
     EventEnrichmentRepositoryPort,
@@ -19,6 +19,18 @@ logger = logging.getLogger(__name__)
 
 ANOMALY_EVENT_TYPE = "ANOMALY_BAR"
 
+# §13.4 D — 봉 단위별 causality 분석 윈도우 multiplier.
+# 일봉 이상치는 단일 뉴스/공시로 설명 가능 (좁은 윈도우),
+# 분기봉 이상치는 거시 trend 로 설명 (넓은 윈도우) — plan §13.4 D 참조.
+_CHART_INTERVAL_WINDOW_MULTIPLIER: dict[str, int] = {
+    "1D": 1,
+    "1W": 7,
+    "1M": 30,
+    "1Q": 90,
+    "1Y": 90,  # legacy alias for 1Q
+}
+_DEFAULT_WINDOW_MULTIPLIER = 1
+
 
 class GetAnomalyCausalityUseCase:
     """이상치 봉 1건의 causality(인과 가설)를 조회한다.
@@ -26,13 +38,22 @@ class GetAnomalyCausalityUseCase:
     - DB `event_enrichments` 캐시(event_type="ANOMALY_BAR")를 먼저 조회해 히트 시 즉시 반환.
     - 미스 시 `run_causality_agent`를 호출하고 결과를 캐시에 upsert.
     - 캐시·LLM 실패는 빈 hypotheses로 graceful degrade.
+    - §13.4 D: chart_interval 별 lookback 윈도우 multiplier 적용. 캐시 키는
+      chart_interval 포함해 봉 단위별 causality 가 분리 저장되도록 한다.
     """
 
     def __init__(self, enrichment_repo: EventEnrichmentRepositoryPort):
         self._enrichment_repo = enrichment_repo
 
-    async def execute(self, ticker: str, bar_date: date) -> AnomalyCausalityResponse:
-        detail_hash = compute_detail_hash(f"{ticker}|{bar_date.isoformat()}")
+    async def execute(
+        self,
+        ticker: str,
+        bar_date: date,
+        chart_interval: Optional[str] = None,
+    ) -> AnomalyCausalityResponse:
+        # 캐시 키에 chart_interval 포함 — None 이면 빈 문자열 (backward compat)
+        ci = (chart_interval or "").upper()
+        detail_hash = compute_detail_hash(f"{ticker}|{bar_date.isoformat()}|{ci}")
         key = (ticker, bar_date, ANOMALY_EVENT_TYPE, detail_hash)
 
         try:
@@ -61,8 +82,16 @@ class GetAnomalyCausalityUseCase:
         )
 
         settings = get_settings()
-        start_date = bar_date - timedelta(days=settings.history_causality_pre_days)
-        end_date = bar_date + timedelta(days=settings.history_causality_post_days)
+        multiplier = _CHART_INTERVAL_WINDOW_MULTIPLIER.get(ci, _DEFAULT_WINDOW_MULTIPLIER)
+        pre_days = settings.history_causality_pre_days * multiplier
+        post_days = settings.history_causality_post_days * multiplier
+        start_date = bar_date - timedelta(days=pre_days)
+        end_date = bar_date + timedelta(days=post_days)
+        if multiplier > 1:
+            logger.info(
+                "[AnomalyCausality] chart_interval=%s 윈도우 확장: pre=%d post=%d",
+                ci, pre_days, post_days,
+            )
 
         try:
             state = await run_causality_agent(
