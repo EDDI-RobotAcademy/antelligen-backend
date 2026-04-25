@@ -1,44 +1,34 @@
-"""ADR-0001 호환 브리지 단위 테스트.
+"""§13.8 Phase 3: dashboard_router._validate_chart_interval 단위 테스트.
 
-dashboard_router 의 `_resolve_chart_interval` 헬퍼가:
-- `chart_interval` 우선
-- `period` 는 deprecation alias 로 fallback
-- 둘 다 없으면 default
-- 유효하지 않은 값은 400
+- chart_interval 만 허용 (period deprecation 완료)
+- 유효값(1D/1W/1M/1Y) → 그대로 반환
+- 유효하지 않은 값 → 400
 """
 
 import pytest
 
 from app.common.exception.app_exception import AppException
-from app.domains.dashboard.adapter.inbound.api.dashboard_router import _resolve_chart_interval
+from app.domains.dashboard.adapter.inbound.api.dashboard_router import _validate_chart_interval
 
 
-class TestResolveChartInterval:
-    def test_chart_interval_takes_precedence_over_period(self):
-        assert _resolve_chart_interval("1Y", "1D", "1M") == "1Y"
-
-    def test_period_used_when_chart_interval_none(self):
-        assert _resolve_chart_interval(None, "1W", "1M") == "1W"
-
-    def test_default_used_when_both_none(self):
-        assert _resolve_chart_interval(None, None, "1M") == "1M"
-
+class TestValidateChartInterval:
     @pytest.mark.parametrize("value", ["1D", "1W", "1M", "1Y"])
-    def test_all_valid_values_accepted(self, value):
-        assert _resolve_chart_interval(value, None, "1M") == value
-        assert _resolve_chart_interval(None, value, "1M") == value
+    def test_all_valid_values_pass_through(self, value):
+        assert _validate_chart_interval(value) == value
 
-    def test_invalid_chart_interval_raises_400(self):
+    def test_invalid_value_raises_400(self):
         with pytest.raises(AppException) as exc:
-            _resolve_chart_interval("5Y", None, "1M")
+            _validate_chart_interval("5Y")
         assert exc.value.status_code == 400
         assert "유효하지 않은 chart_interval" in exc.value.message
 
-    def test_invalid_period_alias_raises_400(self):
+    def test_legacy_1q_value_raises_400_at_dashboard(self):
+        # dashboard 의 _VALID_PERIODS 는 1D/1W/1M/1Y. 1Q 는 history_agent 만 허용.
         with pytest.raises(AppException) as exc:
-            _resolve_chart_interval(None, "1Q", "1M")
+            _validate_chart_interval("1Q")
         assert exc.value.status_code == 400
 
-    def test_empty_string_chart_interval_falls_back_to_period(self):
-        # FastAPI Query 가 빈 문자열을 보내는 엣지 — falsy 평가로 period fallback
-        assert _resolve_chart_interval("", "1D", "1M") == "1D"
+    def test_empty_string_raises_400(self):
+        with pytest.raises(AppException) as exc:
+            _validate_chart_interval("")
+        assert exc.value.status_code == 400

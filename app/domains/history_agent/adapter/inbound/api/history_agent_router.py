@@ -80,8 +80,7 @@ async def _resolve_corp_code(ticker: str, db: AsyncSession) -> Optional[str]:
 @router.get("/timeline", response_model=BaseResponse[TimelineResponse])
 async def get_timeline(
     ticker: str = Query(..., description="종목 코드 (예: AAPL, 005930)"),
-    chart_interval: Optional[str] = Query(None, description="봉 단위: 1D | 1W | 1M | 1Q"),
-    period: Optional[str] = Query(None, description="(deprecated) chart_interval 별칭. 1Y → 1Q 자동 매핑"),
+    chart_interval: str = Query("1Y", description="봉 단위: 1D | 1W | 1M | 1Q (1Y는 1Q로 자동 정규화)"),
     enrich_titles: bool = Query(True, description="LLM 타이틀 생성 여부. False면 rule-based 타이틀만 반환"),
     db: AsyncSession = Depends(get_db),
     usecase: HistoryAgentUseCase = Depends(get_history_agent_usecase),
@@ -101,8 +100,7 @@ async def get_timeline(
     - ETF (SPY 등): MACRO + NEWS + holdings constituent 이벤트 수집
     - 기타(MUTUALFUND/CRYPTO 등 미지원): 빈 타임라인 + asset_type=<원본값>
     """
-    effective = chart_interval or period or "1Y"
-    effective = normalize_chart_interval(effective)
+    effective = normalize_chart_interval(chart_interval)
     if effective not in _VALID_CHART_INTERVALS:
         raise AppException(
             status_code=400,
@@ -121,8 +119,7 @@ async def get_timeline(
 @router.get("/timeline/stream")
 async def stream_timeline(
     ticker: str = Query(..., description="종목 코드 (예: AAPL, 005930)"),
-    chart_interval: Optional[str] = Query(None, description="봉 단위: 1D | 1W | 1M | 1Q"),
-    period: Optional[str] = Query(None, description="(deprecated) chart_interval 별칭"),
+    chart_interval: str = Query("1Y", description="봉 단위: 1D | 1W | 1M | 1Q (1Y는 1Q로 자동 정규화)"),
     enrich_titles: bool = Query(True, description="LLM 타이틀 생성 여부. False면 rule-based 타이틀만 반환"),
     db: AsyncSession = Depends(get_db),
     usecase: HistoryAgentUseCase = Depends(get_history_agent_usecase),
@@ -132,8 +129,7 @@ async def stream_timeline(
     클라이언트 disconnect 시 백그라운드 태스크를 취소해 불필요한 LLM/외부 호출을 차단합니다.
     15초마다 keepalive 프레임(`: ping`)을 송신합니다.
     """
-    effective = chart_interval or period or "1Y"
-    effective = normalize_chart_interval(effective)
+    effective = normalize_chart_interval(chart_interval)
     if effective not in _VALID_CHART_INTERVALS:
         raise AppException(
             status_code=400,
@@ -392,15 +388,13 @@ async def stream_macro_timeline(
 @router.get("/anomaly-bars", response_model=BaseResponse[AnomalyBarsResponse])
 async def get_anomaly_bars(
     ticker: str = Query(..., description="종목 코드"),
-    chart_interval: Optional[str] = Query(None, description="봉 단위: 1D | 1W | 1M | 1Q"),
-    period: Optional[str] = Query(None, description="(deprecated) chart_interval 별칭"),
+    chart_interval: str = Query("1D", description="봉 단위: 1D | 1W | 1M | 1Q (1Y는 1Q로 자동 정규화)"),
 ):
     """차트 이상치 봉(★ 마커 대상)을 반환합니다. §13.4 C 설계로 PRICE 카테고리를 대체.
 
     봉 단위별 adaptive threshold (k=2.5 × σ + floor) 로 평상시 대비 특이한 봉만 선별.
     """
-    effective = chart_interval or period or "1D"
-    effective = normalize_chart_interval(effective)
+    effective = normalize_chart_interval(chart_interval)
     if effective not in _VALID_CHART_INTERVALS:
         raise AppException(
             status_code=400,
