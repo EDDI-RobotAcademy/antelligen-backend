@@ -775,3 +775,84 @@ curated 카탈로그(CRISIS 리먼/COVID, FLASH_CRASH, DOWNGRADE) + FRED indicat
 - **유지**: MACRO timeline cold ≤1.4s, pytest 149 passed, PRICE 카테고리 철거 정상 작동.
 - **출력물**: `matrix.json`(갱신), `matrix.baseline_17.json`(보존), 본 §17.
 - **픽스는 별도 PR**(사용자 방침). 우선순위 §17.5 참조.
+
+## 18. 타임라인 이벤트 모형 재정의 검증 (2026-04-26)
+
+### 18.0 배경
+
+사용자 분류 결정으로 히스토리 타임라인을 시점 명확 사건 중심으로 재정의 (`feedback_timeline_event_only.md`).
+
+- 부적합 데이터 어댑터 단 완전 제거: 배당(yfinance dividends, DART 배당 키워드), 실적(yfinance earnings, DART 분기·반기·사업보고서, FUNDAMENTALS 어댑터 전체), 일상 뉴스(composite_news_provider 전체), 정기 FRED 발표(history_agent fallback 호출 제거)
+- ANNOUNCEMENT 세분류 라벨 5종 신규: MANAGEMENT_CHANGE / ACCOUNTING_ISSUE / REGULATORY / PRODUCT_LAUNCH / CRISIS
+- SEC 8-K Item 5.02/4.02/3.01 매핑 + 본문 키워드 16종 + DART 키워드 11종 확장
+- 캐시 v3→v4 자동 무효화
+
+PR: `EDDI-RobotAcademy/antelligen-backend#52` (merge `3121086`), `antelligen-frontend#39` (merge `3e63324`).
+
+### 18.1 스모크 매트릭스 (2026-04-26)
+
+`smoke_history_timeline.py` 15 endpoint × 2 호출(cold/warm) 모두 200 OK.
+
+| Endpoint | events | 카테고리 분포 | 주요 타입 (top 5) |
+|---|---:|---|---|
+| AAPL_1M | 108 | ANNOUNCEMENT 106, CORPORATE 2 | MAJOR_EVENT 89, **MANAGEMENT_CHANGE 17**, STOCK_SPLIT 2 |
+| AAPL_1Y | 108 | (cache hit, 동일) | (동일) |
+| NVDA_1Y | 63 | ANNOUNCEMENT 60, CORPORATE 3 | MAJOR_EVENT 40, **MANAGEMENT_CHANGE 15**, **CONTRACT 4**, STOCK_SPLIT 3, **MERGER_ACQUISITION 1** |
+| 005930_1M | 2 | CORPORATE 2 | STOCK_SPLIT 2 |
+| 005930_1Y | 2 | CORPORATE 2 | STOCK_SPLIT 2 |
+| IXIC_1M | 30 | MACRO 30 | VIX_SPIKE 7, GEOPOLITICAL_RISK 4, POLICY 4, **CRISIS 3**, GEOPOLITICAL 2 |
+| IXIC_1Y | 30 | MACRO 30 | (동일) |
+| GSPC_1Y | 30 | MACRO 30 | VIX_SPIKE 7, GEOPOLITICAL_RISK 4, POLICY 4, **CRISIS 3**, GEOPOLITICAL 2 |
+| KS11_1Y | 30 | MACRO 30 | VIX_SPIKE 9, GEOPOLITICAL_RISK 7, GEOPOLITICAL 4, **CRISIS 4**, TARIFF 2 |
+| SPY_1M | 370 | ANNOUNCEMENT 332, MACRO 30, CORPORATE 8 | MAJOR_EVENT 262, **MANAGEMENT_CHANGE 59**, **CONTRACT 9**, STOCK_SPLIT 8, VIX_SPIKE 7 |
+| QQQ_1M | 453 | ANNOUNCEMENT 416, MACRO 30, CORPORATE 7 | MAJOR_EVENT 321, **MANAGEMENT_CHANGE 66**, **CONTRACT 27**, VIX_SPIKE 7, STOCK_SPLIT 7 |
+| MACRO_US_1Y | 30 | MACRO 30 | INTEREST_RATE 8, POLICY 4, **CRISIS 4**, GEOPOLITICAL 3, UNEMPLOYMENT 2 |
+| MACRO_KR_1Y | 30 | MACRO 30 | **CRISIS 6**, GEOPOLITICAL 4, VIX_SPIKE 4, OIL_SPIKE 4, INTEREST_RATE 3 |
+| MACRO_GLOBAL_5Y | 30 | MACRO 30 | INTEREST_RATE 6, **CRISIS 6**, GEOPOLITICAL 4, POLICY 4, UNEMPLOYMENT 2 |
+| MACRO_US_10Y | 30 | MACRO 30 | INTEREST_RATE 8, POLICY 4, **CRISIS 4**, GEOPOLITICAL 3, UNEMPLOYMENT 2 |
+
+### 18.2 핵심 검증 결과 ✅
+
+| 검증 항목 | 결과 |
+|---|---|
+| **NEWS 카테고리 0건** (15 endpoints 전체) | ✅ |
+| **FUNDAMENTALS / EARNINGS_BEAT / EARNINGS_MISS / ANALYST_UPGRADE/DOWNGRADE = 0** | ✅ |
+| **CorporateEventType.DIVIDEND / EX_DIVIDEND / EARNINGS = 0** | ✅ |
+| **MACRO 정기 FRED 발표(monthly CPI/UNRATE/FEDFUNDS routine) = 0** | ✅ (curated MACRO 만 잔존, INTEREST_RATE 는 Fed 결정 시점) |
+| **AnnouncementEventType.MANAGEMENT_CHANGE 라벨링 작동** | ✅ AAPL 17, NVDA 15, SPY 59, QQQ 66 |
+| **MERGER_ACQUISITION 라벨링** | ✅ NVDA 1건 식별 |
+| **CONTRACT 라벨링** | ✅ NVDA 4, SPY 9, QQQ 27 |
+| **캐시 v4 무효화** | ✅ cold latency 정상, warm 6ms |
+
+### 18.3 잔존 이슈 / Follow-up
+
+- **MAJOR_EVENT 비율 여전히 높음** (AAPL 89/106=84%, SPY 262/332=79%, QQQ 321/416=77%)
+  - 8-K Item 8.01 (Other Events) 가 fallback 으로 들어감. 정상이지만 본문 키워드 매핑 강화 시 더 세분화 가능
+  - Follow-up P3: title body 기반 LLM 분류 또는 키워드 사전 확장
+- **DART announcement 데이터 sparse** (005930 Samsung 1M/1Y 모두 STOCK_SPLIT 2건 만)
+  - 신규 DART 키워드(임원변동/대표이사 변경/소송/리콜/상폐/거래정지 등) 가 매칭되지 않은 듯
+  - 005930 과거 1년 DART 공시에 해당 키워드가 실제 0건일 가능성도 있음. 별도 검증 필요
+  - Follow-up P3: DART 직접 호출로 raw report_nm 샘플링 후 키워드 보강
+- **ACCOUNTING_ISSUE / REGULATORY / PRODUCT_LAUNCH / CRISIS (ANNOUNCEMENT 카테고리)** 는 매트릭스 top5 에 등장하지 않음
+  - 실제 장기간 데이터에 분포 적은 사건일 수 있고, 본문 키워드만으로는 잡기 어려운 면도 있음
+  - 1Y 차트(20년 lookback)로 확장하면 노출 빈도 증가 예상
+
+### 18.4 성능 비교 (cold latency)
+
+| Endpoint | §17 (PR #30 머지 전) | §18 (이번 PR 머지 후) | 변화 |
+|---|---:|---:|---|
+| IXIC 1Y cold | 10분 46초(회귀) → 29초(PR #33) | **0초(이미 캐시)** | 스모크 직전 워밍업 효과 |
+| AAPL 1M cold | (§17 매트릭스) | **4.47s** | 정상 |
+| SPY 1M cold | — | **12.68s** | ETF 보유종목 8종 fan-out + ANNOUNCEMENT |
+| QQQ 1M cold | — | **52.24s** | ETF 보유종목 fan-out 가장 큼 |
+| MACRO_US_1Y | — | **0.64s** | curated only, FRED routine 제거 후 빠름 |
+
+### 18.5 산출물
+
+- 갱신: `tests/quality/matrix.json` (§18 결과)
+- 신규: `tests/quality/matrix.baseline_18.json` (스냅샷 보존)
+- 본 §18
+
+### 18.6 결론
+
+타임라인 이벤트 모형 재정의 완료. NEWS / FUNDAMENTALS / 정기 FRED / 배당 모두 어댑터 단에서 완전 제거. ANNOUNCEMENT 세분류 라벨링 정상 작동(MANAGEMENT_CHANGE / MERGER_ACQUISITION / CONTRACT 등). MAJOR_EVENT fallback 비율은 follow-up 으로 점진 개선.
