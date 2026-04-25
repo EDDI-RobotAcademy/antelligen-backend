@@ -59,60 +59,70 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 _VALID_PERIODS = {"1D", "1W", "1M", "1Y"}
 
 
+def _resolve_chart_interval(
+    chart_interval: str | None,
+    period: str | None,
+    default: str,
+) -> str:
+    """ADR-0001 호환 브리지: `chart_interval` 우선, `period` 는 deprecation alias.
+
+    값(`1D`/`1W`/`1M`/`1Y`)은 정규화하지 않고 그대로 반환 — yfinance 변환은
+    하위 어댑터(`yahoo_finance_stock_client.normalize_chart_interval`)에서 수행.
+    """
+    effective = chart_interval or period or default
+    if effective not in _VALID_PERIODS:
+        raise AppException(
+            status_code=400,
+            message=f"유효하지 않은 chart_interval입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
+        )
+    return effective
+
+
 @router.get("/nasdaq", response_model=BaseResponse[NasdaqBarsResponse])
 async def get_nasdaq_bars(
-    period: str = Query("1M", description="조회 기간: 1D | 1W | 1M | 1Y"),
+    period: str | None = Query(None, description="Deprecated. `chart_interval` 사용 권장 (ADR-0001)."),
+    chart_interval: str | None = Query(None, description="봉 단위: 1D | 1W | 1M | 1Y"),
     db: AsyncSession = Depends(get_db),
 ):
     """나스닥(^IXIC) OHLCV 일봉 데이터를 반환합니다."""
-    if period not in _VALID_PERIODS:
-        raise AppException(
-            status_code=400,
-            message=f"유효하지 않은 period입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
-        )
+    effective = _resolve_chart_interval(chart_interval, period, "1M")
 
     result = await GetNasdaqBarsUseCase(
         nasdaq_repository=NasdaqRepositoryImpl(db),
-    ).execute(period=period)
+    ).execute(period=effective)
 
     return BaseResponse.ok(data=result)
 
 
 @router.get("/macro", response_model=BaseResponse[MacroDataResponse])
 async def get_macro_data(
-    period: str = Query("1M", description="조회 기간: 1D | 1W | 1M | 1Y"),
+    period: str | None = Query(None, description="Deprecated. `chart_interval` 사용 권장 (ADR-0001)."),
+    chart_interval: str | None = Query(None, description="봉 단위: 1D | 1W | 1M | 1Y"),
 ):
     """거시경제 지표(기준금리·CPI·실업률)를 FRED API에서 실시간 조회합니다."""
-    if period not in _VALID_PERIODS:
-        raise AppException(
-            status_code=400,
-            message=f"유효하지 않은 period입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
-        )
+    effective = _resolve_chart_interval(chart_interval, period, "1M")
 
     result = await GetMacroDataUseCase(
         fred_macro_port=FredMacroClient(),
-    ).execute(period=period)
+    ).execute(period=effective)
 
     return BaseResponse.ok(data=result)
 
 
 @router.get("/economic-events", response_model=BaseResponse[EconomicEventsResponse])
 async def get_economic_events(
-    period: str = Query("1M", description="조회 기간: 1D | 1W | 1M | 1Y"),
+    period: str | None = Query(None, description="Deprecated. `chart_interval` 사용 권장 (ADR-0001)."),
+    chart_interval: str | None = Query(None, description="봉 단위: 1D | 1W | 1M | 1Y"),
 ):
     """경제 이벤트(기준금리·CPI·실업률 발표 이력)를 FRED API에서 실시간 조회합니다.
 
-    period별 날짜 범위: 1D=365일 / 1W=1,095일 / 1M=1,825일 / 1Y=7,300일
+    chart_interval별 날짜 범위: 1D=365일 / 1W=1,095일 / 1M=1,825일 / 1Y=7,300일
     """
-    if period not in _VALID_PERIODS:
-        raise AppException(
-            status_code=400,
-            message=f"유효하지 않은 period입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
-        )
+    effective = _resolve_chart_interval(chart_interval, period, "1M")
 
     result = await GetEconomicEventsUseCase(
         fred_macro_port=FredMacroClient(),
-    ).execute(period=period)
+    ).execute(period=effective)
 
     return BaseResponse.ok(data=result)
 
@@ -120,20 +130,17 @@ async def get_economic_events(
 @router.get("/stocks/{ticker}/bars", response_model=BaseResponse[StockBarsResponse])
 async def get_stock_bars(
     ticker: str,
-    period: str = Query("1D", description="조회 기간: 1D | 1W | 1M | 1Y"),
+    period: str | None = Query(None, description="Deprecated. `chart_interval` 사용 권장 (ADR-0001)."),
+    chart_interval: str | None = Query(None, description="봉 단위: 1D | 1W | 1M | 1Y"),
     redis: aioredis.Redis = Depends(get_redis),
 ):
     """개별 종목 OHLCV 시계열 데이터를 반환합니다. (yfinance + Redis 캐시)"""
-    if period not in _VALID_PERIODS:
-        raise AppException(
-            status_code=400,
-            message=f"유효하지 않은 period입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
-        )
+    effective = _resolve_chart_interval(chart_interval, period, "1D")
 
     result = await GetStockBarsUseCase(
         stock_bars_port=YahooFinanceStockClient(),
         redis=redis,
-    ).execute(ticker=ticker.upper(), period=period)
+    ).execute(ticker=ticker.upper(), period=effective)
 
     return BaseResponse.ok(data=result)
 
@@ -146,7 +153,8 @@ async def get_stock_bars(
 @router.get("/stocks/{ticker}/corporate-events", response_model=BaseResponse[CorporateEventsResponse])
 async def get_corporate_events(
     ticker: str,
-    period: str = Query("1Y", description="조회 기간: 1D | 1W | 1M | 1Y"),
+    period: str | None = Query(None, description="Deprecated. `chart_interval` 사용 권장 (ADR-0001)."),
+    chart_interval: str | None = Query(None, description="봉 단위: 1D | 1W | 1M | 1Y"),
     db: AsyncSession = Depends(get_db),
 ):
     """개별 종목의 기업 이벤트(실적·배당·유상증자·자사주·임원변동 등)를 반환합니다.
@@ -154,11 +162,7 @@ async def get_corporate_events(
     한국 종목(6자리 숫자)은 yfinance + DART 두 소스를 병합해 반환합니다.
     미국 종목은 yfinance(배당·주식분할)만 반환합니다.
     """
-    if period not in _VALID_PERIODS:
-        raise AppException(
-            status_code=400,
-            message=f"유효하지 않은 period입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
-        )
+    effective = _resolve_chart_interval(chart_interval, period, "1Y")
 
     ticker = ticker.upper()
     corp_code = None
@@ -172,7 +176,7 @@ async def get_corporate_events(
     result = await GetCorporateEventsUseCase(
         yfinance_port=YahooFinanceCorporateEventClient(),
         dart_client=DartCorporateEventClient(),
-    ).execute(ticker=ticker, period=period, corp_code=corp_code)
+    ).execute(ticker=ticker, period=effective, corp_code=corp_code)
 
     return BaseResponse.ok(data=result)
 
@@ -180,7 +184,8 @@ async def get_corporate_events(
 @router.get("/stocks/{ticker}/announcements", response_model=BaseResponse[AnnouncementsResponse])
 async def get_announcements(
     ticker: str,
-    period: str = Query("1Y", description="조회 기간: 1D | 1W | 1M | 1Y"),
+    period: str | None = Query(None, description="Deprecated. `chart_interval` 사용 권장 (ADR-0001)."),
+    chart_interval: str | None = Query(None, description="봉 단위: 1D | 1W | 1M | 1Y"),
     db: AsyncSession = Depends(get_db),
 ):
     """합병/인수/계약 공시를 반환합니다.
@@ -188,11 +193,7 @@ async def get_announcements(
     한국 종목(6자리 숫자): DART 주요사항보고서
     미국 종목: SEC EDGAR 8-K 공시
     """
-    if period not in _VALID_PERIODS:
-        raise AppException(
-            status_code=400,
-            message=f"유효하지 않은 period입니다. 사용 가능: {', '.join(sorted(_VALID_PERIODS))}",
-        )
+    effective = _resolve_chart_interval(chart_interval, period, "1Y")
 
     ticker = ticker.upper()
     corp_code = None
@@ -206,7 +207,7 @@ async def get_announcements(
     result = await GetAnnouncementsUseCase(
         sec_edgar_port=SecEdgarAnnouncementClient(),
         dart_client=DartAnnouncementClient(),
-    ).execute(ticker=ticker, period=period, corp_code=corp_code)
+    ).execute(ticker=ticker, period=effective, corp_code=corp_code)
 
     return BaseResponse.ok(data=result)
 
