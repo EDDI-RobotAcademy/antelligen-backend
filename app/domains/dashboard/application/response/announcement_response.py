@@ -26,6 +26,6 @@ class AnnouncementEventResponse(BaseModel):
 
 class AnnouncementsResponse(BaseModel):
     ticker: str
-    period: str
+    chart_interval: str
     count: int
     events: List[AnnouncementEventResponse]

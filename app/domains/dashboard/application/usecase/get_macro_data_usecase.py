@@ -52,7 +52,7 @@ class GetMacroDataUseCase:
         )
 
         return MacroDataResponse(
-            period=period,
+            chart_interval=period,
             interestRate=[MacroDataPointResponse.from_entity(p) for p in interest_rate_data],
             cpi=[MacroDataPointResponse.from_entity(p) for p in cpi_data],
             unemployment=[MacroDataPointResponse.from_entity(p) for p in unemployment_data],

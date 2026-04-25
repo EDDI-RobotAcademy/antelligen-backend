@@ -240,7 +240,7 @@ class GetEconomicEventsUseCase:
         )
 
         return EconomicEventsResponse(
-            period=period,
+            chart_interval=period,
             count=len(all_events),
             events=[EconomicEventResponse.from_entity(e) for e in all_events],
         )

@@ -84,7 +84,7 @@ class GetCorporateEventsUseCase:
 
         return CorporateEventsResponse(
             ticker=ticker,
-            period=period,
+            chart_interval=period,
             count=len(merged),
             events=[CorporateEventResponse.from_entity(e) for e in merged],
         )

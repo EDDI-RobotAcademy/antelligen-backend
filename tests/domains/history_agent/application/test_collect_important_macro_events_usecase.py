@@ -43,7 +43,7 @@ def _fred_response() -> EconomicEventsResponse:
             previous=3.5,
         )
     ]
-    return EconomicEventsResponse(period="1Y", count=1, events=events)
+    return EconomicEventsResponse(chart_interval="1Y", count=1, events=events)
 
 
 def _context_event(date: datetime.date, kind: str = "VIX_SPIKE") -> MacroContextEvent:
@@ -130,7 +130,7 @@ async def test_top_n_limits_output():
     ) as mock_llm_factory:
         econ_instance = MockEcon.return_value
         econ_instance.execute = AsyncMock(
-            return_value=EconomicEventsResponse(period="1Y", count=0, events=[]),
+            return_value=EconomicEventsResponse(chart_interval="1Y", count=0, events=[]),
         )
         mock_llm_factory.return_value = MagicMock()
 
@@ -154,7 +154,7 @@ async def test_dedupe_prefers_curated_over_fred_on_same_date_type():
     ]
 
     fred_events = EconomicEventsResponse(
-        period="1Y",
+        chart_interval="1Y",
         count=1,
         events=[
             EconomicEventResponse(

@@ -248,8 +248,8 @@ async def test_no_llm_title_call_when_enrich_titles_false():
     _module = "app.domains.history_agent.application.usecase.history_agent_usecase"
 
     # §13.4 C: PRICE 카테고리 제거. price_titles·GetPriceEventsUseCase 참조 제거.
-    corp_response = CorporateEventsResponse(ticker=_TICKER, period="1M", count=0, events=[])
-    ann_response = AnnouncementsResponse(ticker=_TICKER, period="1M", count=0, events=[])
+    corp_response = CorporateEventsResponse(ticker=_TICKER, chart_interval="1M", count=0, events=[])
+    ann_response = AnnouncementsResponse(ticker=_TICKER, chart_interval="1M", count=0, events=[])
 
     with patch(f"{_module}.enrich_other_titles", new_callable=AsyncMock) as mock_other_titles, \
          patch(f"{_module}.GetCorporateEventsUseCase") as MockCorpUC, \

@@ -16,7 +16,7 @@ class MacroDataPointResponse(BaseModel):
 
 
 class MacroDataResponse(BaseModel):
-    period: str
+    chart_interval: str
     interestRate: List[MacroDataPointResponse]
     cpi: List[MacroDataPointResponse]
     unemployment: List[MacroDataPointResponse]

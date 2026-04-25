@@ -64,8 +64,8 @@ async def test_collect_holdings_events_tags_constituent_and_weight():
     )
 
     _module = "app.domains.history_agent.application.usecase.history_agent_usecase"
-    corp_resp = CorporateEventsResponse(ticker="AAPL", period="1M", count=0, events=[])
-    ann_resp = AnnouncementsResponse(ticker="AAPL", period="1M", count=0, events=[])
+    corp_resp = CorporateEventsResponse(ticker="AAPL", chart_interval="1M", count=0, events=[])
+    ann_resp = AnnouncementsResponse(ticker="AAPL", chart_interval="1M", count=0, events=[])
 
     with patch(f"{_module}.GetCorporateEventsUseCase") as MockCorp, \
          patch(f"{_module}.GetAnnouncementsUseCase") as MockAnn:

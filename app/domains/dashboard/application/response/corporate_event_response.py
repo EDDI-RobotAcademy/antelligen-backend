@@ -24,6 +24,6 @@ class CorporateEventResponse(BaseModel):
 
 class CorporateEventsResponse(BaseModel):
     ticker: str
-    period: str
+    chart_interval: str
     count: int
     events: List[CorporateEventResponse]

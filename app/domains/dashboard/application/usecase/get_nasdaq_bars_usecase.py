@@ -116,7 +116,7 @@ class GetNasdaqBarsUseCase:
         )
 
         return NasdaqBarsResponse(
-            period=period,
+            chart_interval=period,
             count=len(bars),
             bars=[NasdaqBarResponse.from_entity(bar) for bar in bars],
         )

@@ -27,6 +27,6 @@ class NasdaqBarResponse(BaseModel):
 
 
 class NasdaqBarsResponse(BaseModel):
-    period: str
+    chart_interval: str
     count: int
     bars: List[NasdaqBarResponse]

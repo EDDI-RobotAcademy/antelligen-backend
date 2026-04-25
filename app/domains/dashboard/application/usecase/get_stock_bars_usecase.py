@@ -54,7 +54,7 @@ class GetStockBarsUseCase:
         response = StockBarsResponse(
             ticker=ticker,
             company_name=company_name,
-            period=chart_interval,
+            chart_interval=chart_interval,
             count=len(bars),
             bars=[StockBarResponse.from_entity(bar) for bar in bars],
         )

@@ -29,6 +29,6 @@ class EconomicEventResponse(BaseModel):
 
 
 class EconomicEventsResponse(BaseModel):
-    period: str
+    chart_interval: str
     count: int
     events: List[EconomicEventResponse]

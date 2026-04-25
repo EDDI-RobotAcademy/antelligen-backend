@@ -73,7 +73,7 @@ async def test_etf_dispatches_to_etf_path_without_causality():
             EconomicEventsResponse,
         )
         MockMacro.return_value.execute = AsyncMock(
-            return_value=EconomicEventsResponse(period="1Y", count=0, events=[])
+            return_value=EconomicEventsResponse(chart_interval="1Y", count=0, events=[])
         )
 
         result = await usecase.execute(ticker="SPY", period="1Y")

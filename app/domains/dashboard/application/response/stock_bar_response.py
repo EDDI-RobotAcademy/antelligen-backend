@@ -29,6 +29,6 @@ class StockBarResponse(BaseModel):
 class StockBarsResponse(BaseModel):
     ticker: str
     company_name: str
-    period: str
+    chart_interval: str
     count: int
     bars: List[StockBarResponse]
