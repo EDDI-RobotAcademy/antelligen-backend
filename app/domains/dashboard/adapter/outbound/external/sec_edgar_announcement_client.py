@@ -40,6 +40,7 @@ _ITEM_TYPE_MAP: list[tuple[str, AnnouncementEventType]] = [
     ("5.02", AnnouncementEventType.MANAGEMENT_CHANGE),     # Departure/Election of Directors/Officers
     ("5.07", AnnouncementEventType.SHAREHOLDER_MEETING),   # Submission of Matters to Vote of Security Holders
     ("4.02", AnnouncementEventType.ACCOUNTING_ISSUE),      # Non-Reliance on Previous Financials
+    ("5.03", AnnouncementEventType.ARTICLES_AMENDMENT),    # Amendments to Articles of Incorporation or Bylaws
     ("3.01", AnnouncementEventType.CRISIS),                # Notice of Delisting / Failure to Satisfy Listing Rule
     ("7.01", AnnouncementEventType.REGULATION_FD),         # Reg FD Disclosure (공정공시)
     ("8.01", AnnouncementEventType.MAJOR_EVENT),           # Other Events (fallback)

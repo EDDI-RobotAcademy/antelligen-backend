@@ -51,15 +51,18 @@ class _FakeLLM:
 async def test_classifier_reclassifies_major_event_with_llm():
     """MAJOR_EVENT만 LLM 호출. 재분류 시 event.type을 in-place로 갱신."""
     events = [
-        _event(0, items_str="2.02", detail="Q4 results"),         # → EARNINGS_RELEASE
-        _event(1, items_str="8.01", detail="senior notes due 2030"),  # → DEBT_ISSUANCE
-        _event(2, items_str="8.01", detail="annual meeting voted"),   # → SHAREHOLDER_MEETING
+        _event(0, items_str="2.02", detail="Q4 results"),                    # → EARNINGS_RELEASE
+        _event(1, items_str="8.01", detail="senior notes due 2030"),         # → DEBT_ISSUANCE
+        _event(2, items_str="8.01", detail="annual meeting voted"),          # → SHAREHOLDER_MEETING
+        _event(3, items_str="5.03,9.01", detail="amendment to bylaws"),      # → ARTICLES_AMENDMENT
     ]
     repo = MagicMock()
     repo.find_by_keys = AsyncMock(return_value=[])
-    repo.upsert_bulk = AsyncMock(return_value=3)
+    repo.upsert_bulk = AsyncMock(return_value=4)
 
-    fake_llm = _FakeLLM(["EARNINGS_RELEASE", "DEBT_ISSUANCE", "SHAREHOLDER_MEETING"])
+    fake_llm = _FakeLLM([
+        "EARNINGS_RELEASE", "DEBT_ISSUANCE", "SHAREHOLDER_MEETING", "ARTICLES_AMENDMENT",
+    ])
 
     with patch(
         "app.domains.history_agent.application.service.event_classifier_service.get_workflow_llm",
@@ -71,6 +74,7 @@ async def test_classifier_reclassifies_major_event_with_llm():
     assert events[0].type == "EARNINGS_RELEASE"
     assert events[1].type == "DEBT_ISSUANCE"
     assert events[2].type == "SHAREHOLDER_MEETING"
+    assert events[3].type == "ARTICLES_AMENDMENT"
     assert all(e.classifier_version == "v2" for e in events)
     assert fake_llm.calls == 1
     repo.upsert_bulk.assert_awaited_once()
@@ -78,7 +82,7 @@ async def test_classifier_reclassifies_major_event_with_llm():
     assert all(row.classifier_version == "v2" for row in saved)
     assert all(row.event_type == "MAJOR_EVENT" for row in saved)  # 원본 type 보존
     assert [row.reclassified_type for row in saved] == [
-        "EARNINGS_RELEASE", "DEBT_ISSUANCE", "SHAREHOLDER_MEETING",
+        "EARNINGS_RELEASE", "DEBT_ISSUANCE", "SHAREHOLDER_MEETING", "ARTICLES_AMENDMENT",
     ]
 
 

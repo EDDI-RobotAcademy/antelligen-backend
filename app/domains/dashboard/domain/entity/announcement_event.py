@@ -16,6 +16,7 @@ class AnnouncementEventType(str, Enum):
     DEBT_ISSUANCE = "DEBT_ISSUANCE"                   # 회사채 발행 / 자본 조달
     SHAREHOLDER_MEETING = "SHAREHOLDER_MEETING"       # 주주총회 결과 (8-K Item 5.07)
     REGULATION_FD = "REGULATION_FD"                   # Reg FD 공정공시 (8-K Item 7.01)
+    ARTICLES_AMENDMENT = "ARTICLES_AMENDMENT"         # 정관·부속법 개정 (8-K Item 5.03)
     MAJOR_EVENT = "MAJOR_EVENT"                       # 기타 주요사항 (fallback)
 
 
