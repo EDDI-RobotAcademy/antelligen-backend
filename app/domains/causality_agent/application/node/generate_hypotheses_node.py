@@ -29,19 +29,72 @@ _SYSTEM_PROMPT = """\
 - 근거 데이터(지표명, 수치, 날짜)를 가설 안에 포함한다
 - 3~6개의 가설을 생성한다
 - 서로 독립적인 관점(가격, 거시경제, 지정학, 섹터)을 포함한다
+- 단정적 표현("때문이다", "확실히") 금지. "가능성이 있다", "추정된다" 등 추정 어휘 사용
+- 매수/매도 추천 표현 금지
+
+## 신뢰도(confidence) 등급 기준
+- "HIGH": 1차 출처(공식 공시·실적 발표·중앙은행 결정문) + 정량 근거 + 시점 일치
+- "MEDIUM": 신뢰 매체(Reuters/Bloomberg 등) 보도 + 일부 정량 근거 일치
+- "LOW": 추정·간접 증거·미확인 보도·단일 출처
+
+## 계층(layer) 분류
+- "DIRECT": 종목 고유 사건이 직접 원인 (실적, 공시, 인수합병, 제품 리콜)
+- "SUPPORTING": 보조 컨텍스트 (섹터 동반 움직임, 경쟁사 동향)
+- "MARKET": 시장 전체/매크로 영향 (지수 동반, 금리, 지정학)
 
 ## 최종 출력 형식
-도구 호출이 완료된 후 반드시 아래 JSON만 출력한다. 다른 설명은 추가하지 않는다.
+도구 호출이 완료된 후 반드시 아래 JSON 배열만 출력한다. 다른 설명은 추가하지 않는다.
+모든 필드는 필수. sources 가 없으면 빈 배열 []. evidence 가 없으면 빈 문자열 "".
 
 ```json
 [
   {
     "hypothesis": "가설 내용 (한국어, 2~4문장)",
+    "confidence": "HIGH" | "MEDIUM" | "LOW",
+    "layer": "DIRECT" | "SUPPORTING" | "MARKET",
+    "sources": [{"label": "Reuters", "url": "https://..."}],
+    "evidence": "10년 국채금리 4.50%→4.30% (2024-09-18)",
     "supporting_tools_called": ["tool_name_1", "tool_name_2"]
   }
 ]
 ```
 """
+
+_VALID_CONFIDENCE = {"HIGH", "MEDIUM", "LOW"}
+_VALID_LAYER = {"DIRECT", "SUPPORTING", "MARKET"}
+
+
+def _normalize_hypothesis(h: Dict[str, Any]) -> Dict[str, Any]:
+    """LLM 출력의 신규 필드(confidence/layer/sources/evidence)를 안전한 기본값으로 정규화."""
+    confidence = str(h.get("confidence", "")).upper()
+    if confidence not in _VALID_CONFIDENCE:
+        confidence = "LOW"
+
+    layer = str(h.get("layer", "")).upper()
+    if layer not in _VALID_LAYER:
+        layer = "SUPPORTING"
+
+    sources_raw = h.get("sources") or []
+    sources: List[Dict[str, Any]] = []
+    if isinstance(sources_raw, list):
+        for s in sources_raw:
+            if not isinstance(s, dict):
+                continue
+            label = str(s.get("label", "")).strip()
+            if not label:
+                continue
+            url = s.get("url")
+            sources.append({"label": label, "url": url if url else None})
+
+    evidence = h.get("evidence")
+    if not isinstance(evidence, str) or not evidence.strip():
+        evidence = None
+
+    h["confidence"] = confidence
+    h["layer"] = layer
+    h["sources"] = sources
+    h["evidence"] = evidence
+    return h
 
 
 def _build_context_message(state: CausalityAgentState) -> str:
@@ -143,6 +196,7 @@ async def generate_hypotheses(state: CausalityAgentState) -> Dict[str, Any]:
     for h in hypotheses:
         if not h.get("supporting_tools_called"):
             h["supporting_tools_called"] = unique_tools
+        _normalize_hypothesis(h)
 
     return {
         "hypotheses": hypotheses,

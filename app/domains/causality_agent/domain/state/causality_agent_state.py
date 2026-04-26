@@ -2,9 +2,18 @@ from datetime import date
 from typing import Any, Dict, List, TypedDict
 
 
-class Hypothesis(TypedDict):
+class HypothesisSource(TypedDict, total=False):
+    label: str
+    url: str
+
+
+class Hypothesis(TypedDict, total=False):
     hypothesis: str
     supporting_tools_called: List[str]
+    confidence: str          # HIGH | MEDIUM | LOW
+    layer: str               # DIRECT | SUPPORTING | MARKET
+    sources: List[HypothesisSource]
+    evidence: str
 
 
 class OHLCVBar(TypedDict):

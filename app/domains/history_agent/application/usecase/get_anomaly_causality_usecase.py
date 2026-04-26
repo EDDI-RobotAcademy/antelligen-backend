@@ -31,6 +31,11 @@ _CHART_INTERVAL_WINDOW_MULTIPLIER: dict[str, int] = {
 }
 _DEFAULT_WINDOW_MULTIPLIER = 1
 
+# HypothesisResult 스키마 버전. 새 필드 추가 시 bump 하여 기존 캐시를 자연 무효화한다.
+# v1: hypothesis + supporting_tools_called
+# v2: + confidence + layer + sources + evidence (KR2-(2)(3))
+_HYPOTHESIS_SCHEMA_VERSION = "v2"
+
 
 class GetAnomalyCausalityUseCase:
     """이상치 봉 1건의 causality(인과 가설)를 조회한다.
@@ -53,7 +58,9 @@ class GetAnomalyCausalityUseCase:
     ) -> AnomalyCausalityResponse:
         # 캐시 키에 chart_interval 포함 — None 이면 빈 문자열 (backward compat)
         ci = (chart_interval or "").upper()
-        detail_hash = compute_detail_hash(f"{ticker}|{bar_date.isoformat()}|{ci}")
+        detail_hash = compute_detail_hash(
+            f"{ticker}|{bar_date.isoformat()}|{ci}|{_HYPOTHESIS_SCHEMA_VERSION}"
+        )
         key = (ticker, bar_date, ANOMALY_EVENT_TYPE, detail_hash)
 
         try:

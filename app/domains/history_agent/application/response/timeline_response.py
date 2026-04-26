@@ -4,9 +4,22 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class HypothesisSource(BaseModel):
+    label: str                              # "Reuters", "DART", "Bloomberg"
+    url: Optional[str] = None               # 1차 URL (없으면 라벨만 표시)
+
+
 class HypothesisResult(BaseModel):
     hypothesis: str
     supporting_tools_called: List[str]
+    # KR2-(3) 신뢰도 등급 — HIGH | MEDIUM | LOW. 누락/이상치는 LOW 로 다운그레이드.
+    confidence: str = "LOW"
+    # KR2-(2) 추정 원인 계층 — DIRECT(종목 고유) | SUPPORTING(보조 컨텍스트) | MARKET(시장/매크로).
+    layer: str = "SUPPORTING"
+    # KR2-(3) 출처 URL+라벨. 1차 출처 우선, 부재 시 빈 배열.
+    sources: List[HypothesisSource] = []
+    # KR2-(3) 정량 근거(지표명·수치·날짜). 없으면 None.
+    evidence: Optional[str] = None
 
 
 class TimelineEvent(BaseModel):
