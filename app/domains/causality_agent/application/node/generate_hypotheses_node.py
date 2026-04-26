@@ -24,11 +24,36 @@ _SYSTEM_PROMPT = """\
 제공된 도구를 자율적으로 호출해 시장 데이터를 탐색한 후,
 데이터에 근거한 인과 관계 가설을 생성하십시오.
 
+## 사용 가능한 도구 (가설 작성 전 적극 활용)
+
+### 종목 자체 분석
+- `get_price_stats(window_days)`: OHLCV 수익률·변동성·MDD. 종목 변동성 평가에 사용.
+- `get_announcements(keyword?, max_results?)`: SEC 8-K 공시 (미국 종목). 실적/M&A/리콜 등 DIRECT layer 가설 근거. 한국 종목은 빈 결과.
+- `get_analyst_recommendations(months)`: Finnhub buy/hold/sell 월별 트렌드 + 직전 달 대비 변화. 미국 종목 한정.
+
+### 뉴스
+- `fetch_news_headlines(keyword, max_results?)`: Finnhub/GDELT/yfinance/Naver(KR) 통합 뉴스에서 키워드 필터. DIRECT/SUPPORTING 가설의 출처(sources) URL 으로 인용.
+
+### 시장 비교 (종목 영향 vs 시장 영향 분리에 필수)
+- `get_market_comparison(window_days)`: 종목 cumulative return vs 시장 벤치마크(KR=^KS11/US=^GSPC) → alpha. **MARKET layer 가설을 작성할지 DIRECT layer 가설을 작성할지 결정하는 핵심 도구.**
+
+### 매크로 환경
+- `get_correlated_asset(symbol)`: VIX·원유·금·미국채·엔화. MARKET layer 가설 근거.
+- `get_fred_series(series_id)`: FEDFUNDS/CPIAUCSL/UNRATE. 통화정책·인플레·고용 변화로 MARKET 가설.
+- `get_gpr_summary()`: 지정학적 리스크 추세. MARKET layer.
+
+### 권장 호출 흐름
+1. 먼저 `get_price_stats` + `get_market_comparison` 으로 종목 vs 시장 분리 평가
+2. alpha 가 큼 → DIRECT layer 가설 우선 (`get_announcements`/`fetch_news_headlines`/`get_analyst_recommendations`)
+3. alpha 가 작거나 시장 동반 → MARKET layer 가설 (매크로 도구들)
+4. 양쪽 모두 검토해 다양한 layer 의 가설을 생성
+
 ## 가설 작성 기준
 - 가설은 인과 관계를 명시해야 한다: "[원인] → [결과]" 형태
 - 근거 데이터(지표명, 수치, 날짜)를 가설 안에 포함한다
 - 3~6개의 가설을 생성한다
 - 서로 독립적인 관점(가격, 거시경제, 지정학, 섹터)을 포함한다
+- **layer 가 한 종류로만 치우치지 않도록** — DIRECT/SUPPORTING/MARKET 중 최소 2개 layer 가 섞이게 한다
 - 단정적 표현("때문이다", "확실히") 금지. "가능성이 있다", "추정된다" 등 추정 어휘 사용
 - 매수/매도 추천 표현 금지
 
@@ -38,9 +63,9 @@ _SYSTEM_PROMPT = """\
 - "LOW": 추정·간접 증거·미확인 보도·단일 출처
 
 ## 계층(layer) 분류
-- "DIRECT": 종목 고유 사건이 직접 원인 (실적, 공시, 인수합병, 제품 리콜)
-- "SUPPORTING": 보조 컨텍스트 (섹터 동반 움직임, 경쟁사 동향)
-- "MARKET": 시장 전체/매크로 영향 (지수 동반, 금리, 지정학)
+- "DIRECT": 종목 고유 사건이 직접 원인 (실적, 공시, 인수합병, 제품 리콜) — `get_announcements`/`fetch_news_headlines`/`get_analyst_recommendations`
+- "SUPPORTING": 보조 컨텍스트 (섹터 동반 움직임, 경쟁사 동향) — 현재 도구 부재 시 시장 비교의 alpha 가 작은 케이스로 추정
+- "MARKET": 시장 전체/매크로 영향 (지수 동반, 금리, 지정학) — `get_market_comparison`/`get_correlated_asset`/`get_fred_series`/`get_gpr_summary`
 
 ## 최종 출력 형식
 도구 호출이 완료된 후 반드시 아래 JSON 배열만 출력한다. 다른 설명은 추가하지 않는다.
