@@ -5,7 +5,7 @@ LangChain Tool Use용 도구 정의 + 실행기.
 """
 import json
 import statistics
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from langchain_core.tools import StructuredTool
 
@@ -324,6 +324,17 @@ def _exec_get_analyst_recommendations(state: CausalityAgentState, inputs: Dict[s
     )
 
 
+def _cumulative_pct(bars: List[Dict[str, Any]]) -> Optional[float]:
+    """첫 close → 마지막 close cumulative return(%). 데이터 부족/기준가 0 이면 None."""
+    if len(bars) < 2:
+        return None
+    start = bars[0].get("close")
+    end = bars[-1].get("close")
+    if not start or start <= 0:
+        return None
+    return (end - start) / start * 100.0
+
+
 def _exec_get_market_comparison(state: CausalityAgentState, inputs: Dict[str, Any]) -> str:
     benchmark = state.get("market_benchmark")
     if not benchmark:
@@ -341,34 +352,52 @@ def _exec_get_market_comparison(state: CausalityAgentState, inputs: Dict[str, An
         if len(bars) < 2 or len(bm_bars) < 2:
             return json.dumps({"available": False, "reason": "window 데이터 부족"})
 
-    ticker_start = bars[0]["close"]
-    ticker_end = bars[-1]["close"]
-    bm_start = bm_bars[0]["close"]
-    bm_end = bm_bars[-1]["close"]
-
-    if ticker_start <= 0 or bm_start <= 0:
+    ticker_return = _cumulative_pct(bars)
+    bm_return = _cumulative_pct(bm_bars)
+    if ticker_return is None or bm_return is None:
         return json.dumps({"available": False, "reason": "기준가 부정"})
 
-    ticker_return = (ticker_end - ticker_start) / ticker_start * 100.0
-    bm_return = (bm_end - bm_start) / bm_start * 100.0
     alpha = ticker_return - bm_return
 
-    return json.dumps(
-        {
-            "available": True,
-            "period_days": len(bars),
-            "ticker_return_pct": round(ticker_return, 2),
-            "market_symbol": benchmark.get("symbol"),
-            "market_name": benchmark.get("name"),
-            "market_return_pct": round(bm_return, 2),
+    response: Dict[str, Any] = {
+        "available": True,
+        "period_days": len(bars),
+        "ticker_return_pct": round(ticker_return, 2),
+        "market": {
+            "symbol": benchmark.get("symbol"),
+            "name": benchmark.get("name"),
+            "return_pct": round(bm_return, 2),
             "alpha_pct": round(alpha, 2),
-            "interpretation": (
-                "시장 대비 outperform" if alpha > 0
-                else "시장 대비 underperform" if alpha < 0
-                else "시장과 동일"
-            ),
-        }
-    )
+        },
+        "interpretation": (
+            "시장 대비 outperform" if alpha > 0
+            else "시장 대비 underperform" if alpha < 0
+            else "시장과 동일"
+        ),
+    }
+
+    # 섹터 벤치마크 동시 비교 (매핑이 있는 미국 종목만 채워짐)
+    sector = state.get("sector_benchmark")
+    if sector and sector.get("bars"):
+        sb_bars = sector["bars"]
+        if window > 0:
+            sb_bars = sb_bars[-window:]
+        sector_return = _cumulative_pct(sb_bars)
+        if sector_return is not None:
+            sector_alpha = ticker_return - sector_return
+            response["sector"] = {
+                "symbol": sector.get("symbol"),
+                "name": sector.get("name"),
+                "return_pct": round(sector_return, 2),
+                "alpha_pct": round(sector_alpha, 2),
+                "interpretation": (
+                    "섹터 대비 outperform" if sector_alpha > 0
+                    else "섹터 대비 underperform" if sector_alpha < 0
+                    else "섹터와 동일"
+                ),
+            }
+
+    return json.dumps(response)
 
 
 _EXECUTORS = {

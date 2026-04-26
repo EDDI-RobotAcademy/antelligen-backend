@@ -61,6 +61,7 @@ async def run_causality_agent(
         "announcements": [],
         "analyst_recommendations": [],
         "market_benchmark": None,
+        "sector_benchmark": None,
         "hypotheses": [],
         "tool_call_log": [],
         "errors": [],
@@ -70,10 +71,12 @@ async def run_causality_agent(
     logger.info("[CausalityAgent] ══════════════════════════════════════")
     result = await _compiled.ainvoke(initial)
     mb = result.get("market_benchmark")
+    sb = result.get("sector_benchmark")
     mb_label = f"{mb['symbol']}({len(mb.get('bars', []))})" if mb else "none"
+    sb_label = f"{sb['symbol']}({len(sb.get('bars', []))})" if sb else "none"
     logger.info(
         "[CausalityAgent] 완료: ticker=%s, ohlcv=%d, fred=%d, assets=%d, "
-        "news=%d, gpr=%d, ann=%d, rec=%d, mb=%s, hypotheses=%d, tools=%s, errors=%d",
+        "news=%d, gpr=%d, ann=%d, rec=%d, mb=%s, sb=%s, hypotheses=%d, tools=%s, errors=%d",
         ticker,
         len(result.get("ohlcv_bars", [])),
         len(result.get("fred_series", [])),
@@ -83,6 +86,7 @@ async def run_causality_agent(
         len(result.get("announcements", [])),
         len(result.get("analyst_recommendations", [])),
         mb_label,
+        sb_label,
         len(result.get("hypotheses", [])),
         result.get("tool_call_log", []),
         len(result.get("errors", [])),
