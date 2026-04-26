@@ -46,6 +46,9 @@ from app.domains.history_agent.application.response.timeline_response import (
     TimelineEvent,
     TimelineResponse,
 )
+from app.domains.history_agent.application.service.event_importance_service import (
+    EventImportanceService,
+)
 from app.domains.history_agent.application.service.text_utils import (
     needs_korean_summary,
 )
@@ -65,8 +68,8 @@ from app.infrastructure.langgraph.llm_factory import get_workflow_llm
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 3600
-# v4: NEWS / FUNDAMENTALS 카테고리 제거 + ANNOUNCEMENT 세분류 라벨 5종 추가로 스키마 변경 — v3 캐시 무효화.
-_CACHE_VERSION = "v4"
+# v5: CORPORATE/ANNOUNCEMENT importance_score 보강(EventImportanceService 도입)으로 스키마 변경 — v4 캐시 무효화.
+_CACHE_VERSION = "v5"
 
 _SUPPORTED_ASSET_TYPES = {"EQUITY", "INDEX", "ETF"}
 
@@ -595,6 +598,7 @@ class HistoryAgentUseCase:
         self._etf_holdings_port = etf_holdings_port
         self._related_assets_port = related_assets_port
         self._gpr_index_port = gpr_index_port
+        self._event_importance_service = EventImportanceService(enrichment_repo)
 
     @staticmethod
     def _build_cache_key(asset_type: str, ticker: str, period: str, enrich_titles: bool) -> str:
@@ -744,11 +748,13 @@ class HistoryAgentUseCase:
                 causality_task,
                 enrich_other_titles(timeline),
                 _enrich_announcement_details(timeline, redis=self._redis),
+                self._event_importance_service.score(ticker, timeline),
             )
         else:
             await asyncio.gather(
                 causality_task,
                 _enrich_announcement_details(timeline, redis=self._redis),
+                self._event_importance_service.score(ticker, timeline),
             )
 
         # 4) 신규 이벤트만 DB 저장
@@ -899,9 +905,13 @@ class HistoryAgentUseCase:
                 enrich_macro_titles(timeline, redis=self._redis),
                 enrich_other_titles(timeline),
                 _enrich_announcement_details(timeline, redis=self._redis),
+                self._event_importance_service.score(ticker, timeline),
             )
         else:
-            await _enrich_announcement_details(timeline, redis=self._redis)
+            await asyncio.gather(
+                _enrich_announcement_details(timeline, redis=self._redis),
+                self._event_importance_service.score(ticker, timeline),
+            )
 
         await self._save_enrichments(ticker, new_events)
 
