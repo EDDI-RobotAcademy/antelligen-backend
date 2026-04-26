@@ -62,10 +62,11 @@ EVENT_CLASSIFIER_V2_SYSTEM = """\
 - DEBT_ISSUANCE: 회사채/사채/notes 발행, 자본 조달
 - SHAREHOLDER_MEETING: 정기/임시 주주총회 결과 (Item 5.07)
 - REGULATION_FD: Reg FD 공정공시 (Item 7.01) — 가이던스 변경 등
+- ARTICLES_AMENDMENT: 정관/부속법 개정 (Item 5.03) — 지배구조·주주권·M&A 방어 조항 변경
 - MAJOR_EVENT: 위 어디에도 명확히 속하지 않는 기타 중요사항
 
 판단 가이드:
-- Item 코드는 강한 신호. 2.02→EARNINGS_RELEASE, 5.07→SHAREHOLDER_MEETING, 7.01→REGULATION_FD 우선.
+- Item 코드는 강한 신호. 2.02→EARNINGS_RELEASE, 5.07→SHAREHOLDER_MEETING, 7.01→REGULATION_FD, 5.03→ARTICLES_AMENDMENT 우선.
 - 8.01(Other Events)이면 본문 내용으로 판단. 회사채 발행이면 DEBT_ISSUANCE, 그 외 정기 IR이면 REGULATION_FD.
 - 본문에 "quarterly results", "earnings", "Q4 results" → EARNINGS_RELEASE.
 - 본문에 "notes due", "senior notes", "bond" → DEBT_ISSUANCE.

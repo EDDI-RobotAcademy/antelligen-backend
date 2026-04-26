@@ -74,6 +74,7 @@ _TYPE_BASE_SCORE: Dict[str, float] = {
     "DEBT_ISSUANCE": 0.35,
     "SHAREHOLDER_MEETING": 0.25,
     "REGULATION_FD": 0.30,
+    "ARTICLES_AMENDMENT": 0.45,  # 정관·부속법 개정 — 지배구조 변경 신호
     # CORPORATE
     "RIGHTS_OFFERING": 0.55,
     "BUYBACK_CANCEL": 0.50,
@@ -104,6 +105,7 @@ _TYPE_BASE_SCORE_1to5: Dict[str, int] = {
     "DEBT_ISSUANCE": 2,
     "REGULATION_FD": 1,
     "SHAREHOLDER_MEETING": 1,
+    "ARTICLES_AMENDMENT": 3,  # 정관 개정 — 지배구조 변경 신호
     # CORPORATE
     "RIGHTS_OFFERING": 3,
     "BUYBACK_CANCEL": 3,
