@@ -1,5 +1,34 @@
 [
   {
+    "date": "1997-12-03",
+    "event_type": "CRISIS",
+    "region": "KR",
+    "title": "IMF 외환위기 구제금융 합의",
+    "detail": "한국 정부가 IMF에 550억 달러 규모 구제금융을 공식 요청·합의. 원화 폭락, 종합주가지수 376까지 추락, 대규모 기업 도산.",
+    "tags": ["crisis", "imf", "fx", "korea"],
+    "importance_score": 1.0,
+    "source_url": "https://en.wikipedia.org/wiki/1997_Asian_financial_crisis"
+  },
+  {
+    "date": "2003-03-11",
+    "event_type": "CRISIS",
+    "region": "KR",
+    "title": "SK글로벌 분식회계 발각",
+    "detail": "SK글로벌 1조 5천억원대 분식회계 적발 발표. SK 그룹 신용위기로 확산되며 코스피 급락, 외국인 자금 이탈.",
+    "tags": ["crisis", "accounting-fraud", "korea"],
+    "importance_score": 0.85
+  },
+  {
+    "date": "2008-03-16",
+    "event_type": "CRISIS",
+    "region": "US",
+    "title": "Bear Stearns JPM 인수",
+    "detail": "JP Morgan이 베어스턴스를 주당 2달러(이후 10달러)에 긴급 인수. Fed 290억 달러 자금 지원. 글로벌 금융위기의 첫 대형 투자은행 붕괴 신호탄.",
+    "tags": ["crisis", "banking", "rescue"],
+    "importance_score": 0.9,
+    "source_url": "https://en.wikipedia.org/wiki/Bear_Stearns#Subprime_mortgage_crisis"
+  },
+  {
     "date": "2008-09-15",
     "event_type": "CRISIS",
     "region": "GLOBAL",
@@ -8,6 +37,16 @@
     "tags": ["crisis", "banking", "bankruptcy"],
     "importance_score": 1.0,
     "source_url": "https://en.wikipedia.org/wiki/Bankruptcy_of_Lehman_Brothers"
+  },
+  {
+    "date": "2008-09-16",
+    "event_type": "CRISIS",
+    "region": "US",
+    "title": "AIG 850억 달러 구제금융",
+    "detail": "Fed가 AIG에 850억 달러 신용한도를 긴급 제공하고 79.9% 지분 확보. 시스템 리스크 차단을 위한 사상 최대 규모 단일기업 구제.",
+    "tags": ["crisis", "rescue", "insurance"],
+    "importance_score": 0.95,
+    "source_url": "https://en.wikipedia.org/wiki/American_International_Group#2008_liquidity_crisis"
   },
   {
     "date": "2008-10-03",
@@ -20,6 +59,15 @@
     "source_url": "https://en.wikipedia.org/wiki/Emergency_Economic_Stabilization_Act_of_2008"
   },
   {
+    "date": "2008-10-30",
+    "event_type": "POLICY",
+    "region": "KR",
+    "title": "한미 통화스왑 300억 달러 체결",
+    "detail": "미 연준이 한국·브라질·멕시코·싱가포르와 각 300억 달러 통화스왑 체결. 원달러 환율 단숨에 250원 급락하며 외환위기 우려 진정.",
+    "tags": ["policy", "fx", "swap", "korea"],
+    "importance_score": 0.9
+  },
+  {
     "date": "2010-05-06",
     "event_type": "FLASH_CRASH",
     "region": "US",
@@ -28,6 +76,16 @@
     "tags": ["market-structure", "hft", "flash-crash"],
     "importance_score": 0.9,
     "source_url": "https://en.wikipedia.org/wiki/2010_flash_crash"
+  },
+  {
+    "date": "2010-11-23",
+    "event_type": "GEOPOLITICAL",
+    "region": "KR",
+    "title": "연평도 포격",
+    "detail": "북한이 연평도에 170여발 포격, 한국 해병·민간인 사상. 코스피 1.5% 급락, 원화 약세. 남북 군사 긴장 최고조.",
+    "tags": ["geopolitics", "korea", "north-korea"],
+    "importance_score": 0.85,
+    "source_url": "https://en.wikipedia.org/wiki/Bombardment_of_Yeonpyeong"
   },
   {
     "date": "2011-08-05",
@@ -49,6 +107,26 @@
     "importance_score": 0.8
   },
   {
+    "date": "2013-05-22",
+    "event_type": "POLICY",
+    "region": "GLOBAL",
+    "title": "Bernanke 테이퍼 탠트럼",
+    "detail": "Fed 의장 Bernanke 의회 증언에서 자산매입 축소 시사. 신흥국 통화·채권 동시 급락, 美 10년물 금리 1.6→3.0% 급등.",
+    "tags": ["policy", "taper", "tantrum", "emerging-markets"],
+    "importance_score": 0.9,
+    "source_url": "https://en.wikipedia.org/wiki/Taper_tantrum"
+  },
+  {
+    "date": "2014-12-16",
+    "event_type": "FX_SHOCK",
+    "region": "GLOBAL",
+    "title": "러시아 루블 위기 — CBR 한밤중 17% 인상",
+    "detail": "유가 폭락 + 우크라이나 제재 여파로 루블 폭락. 러시아 중앙은행이 심야에 기준금리 10.5→17%로 650bp 인상. 신흥국 자금 이탈 가속.",
+    "tags": ["fx", "russia", "rate-hike", "energy"],
+    "importance_score": 0.85,
+    "source_url": "https://en.wikipedia.org/wiki/Russian_financial_crisis_(2014%E2%80%932016)"
+  },
+  {
     "date": "2015-08-11",
     "event_type": "FX_SHOCK",
     "region": "GLOBAL",
@@ -59,6 +137,16 @@
     "source_url": "https://en.wikipedia.org/wiki/2015_Chinese_stock_market_crash"
   },
   {
+    "date": "2015-08-24",
+    "event_type": "CRISIS",
+    "region": "GLOBAL",
+    "title": "China Black Monday",
+    "detail": "상하이종합지수 -8.5% 폭락 + 미국 다우 장중 -1000pt 패닉. 위안화 절하 여파로 신흥국 동반 매도 패닉.",
+    "tags": ["crisis", "china", "panic-sell"],
+    "importance_score": 0.9,
+    "source_url": "https://en.wikipedia.org/wiki/2015%E2%80%932016_Chinese_stock_market_turbulence"
+  },
+  {
     "date": "2016-06-24",
     "event_type": "GEOPOLITICAL",
     "region": "GLOBAL",
@@ -67,6 +155,25 @@
     "tags": ["politics", "eu", "uk", "brexit"],
     "importance_score": 0.95,
     "source_url": "https://en.wikipedia.org/wiki/2016_United_Kingdom_European_Union_membership_referendum"
+  },
+  {
+    "date": "2017-03-10",
+    "event_type": "GEOPOLITICAL",
+    "region": "KR",
+    "title": "박근혜 대통령 탄핵 인용",
+    "detail": "헌법재판소가 대통령 탄핵을 만장일치 인용. 헌정 사상 첫 대통령 파면. 정치 불확실성 해소로 이후 코스피 랠리.",
+    "tags": ["politics", "korea", "impeachment"],
+    "importance_score": 0.85,
+    "source_url": "https://en.wikipedia.org/wiki/Impeachment_of_Park_Geun-hye"
+  },
+  {
+    "date": "2017-08-08",
+    "event_type": "GEOPOLITICAL",
+    "region": "GLOBAL",
+    "title": "트럼프 \"화염과 분노\" 발언",
+    "detail": "북한 ICBM 도발 직후 트럼프가 \"화염과 분노(fire and fury)\" 경고. 코스피·원화 약세, VIX 급등, 안전자산 쏠림.",
+    "tags": ["geopolitics", "north-korea", "trump"],
+    "importance_score": 0.75
   },
   {
     "date": "2018-02-05",
@@ -87,6 +194,25 @@
     "importance_score": 0.9
   },
   {
+    "date": "2018-12-19",
+    "event_type": "POLICY",
+    "region": "US",
+    "title": "Fed 12월 매파적 인상",
+    "detail": "FOMC가 25bp 인상하며 2019년 추가 인상 시사. 점도표 매파 해석으로 S&P500 12월 한 달 -9% 폭락. Powell put 부재 논쟁.",
+    "tags": ["policy", "rate-hike", "hawkish"],
+    "importance_score": 0.85
+  },
+  {
+    "date": "2019-09-17",
+    "event_type": "CRISIS",
+    "region": "US",
+    "title": "Repo 위기",
+    "detail": "오버나이트 레포 금리가 일시 10%까지 폭등. Fed 긴급 유동성 공급 + 표준화 환매조건부 매입(QE-lite) 재개. 자금시장 구조적 한계 노출.",
+    "tags": ["crisis", "liquidity", "repo"],
+    "importance_score": 0.8,
+    "source_url": "https://en.wikipedia.org/wiki/September_2019_events_in_the_U.S._repo_market"
+  },
+  {
     "date": "2020-03-09",
     "event_type": "CRISIS",
     "region": "GLOBAL",
@@ -95,6 +221,16 @@
     "tags": ["crisis", "covid", "circuit-breaker"],
     "importance_score": 1.0,
     "source_url": "https://en.wikipedia.org/wiki/2020_stock_market_crash"
+  },
+  {
+    "date": "2020-03-11",
+    "event_type": "CRISIS",
+    "region": "GLOBAL",
+    "title": "WHO 팬데믹 공식 선언",
+    "detail": "WHO가 COVID-19를 팬데믹으로 공식 선언. 글로벌 락다운 도미노, 항공·관광 패닉셀 본격화.",
+    "tags": ["crisis", "covid", "pandemic"],
+    "importance_score": 0.95,
+    "source_url": "https://en.wikipedia.org/wiki/COVID-19_pandemic"
   },
   {
     "date": "2020-03-15",
@@ -114,6 +250,45 @@
     "detail": "COVID 폭락으로 코스피 1457까지 급락. 금융위, 6개월간 공매도 전면 금지 조치.",
     "tags": ["crisis", "covid", "shortsale-ban"],
     "importance_score": 0.9
+  },
+  {
+    "date": "2020-03-23",
+    "event_type": "POLICY",
+    "region": "US",
+    "title": "Fed 무제한 QE + 회사채 매입",
+    "detail": "Fed가 무제한 QE + Primary/Secondary Market Corporate Credit Facilities(PMCCF/SMCCF) 도입. S&P500 V자 반등의 변곡점.",
+    "tags": ["policy", "qe-unlimited", "corporate-credit"],
+    "importance_score": 0.95,
+    "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200323b.htm"
+  },
+  {
+    "date": "2020-08-27",
+    "event_type": "POLICY",
+    "region": "US",
+    "title": "Fed 평균물가목표제(AIT) 도입",
+    "detail": "Powell이 Jackson Hole 연설에서 평균물가목표(Average Inflation Targeting) 채택 발표. 인플레 오버슈팅 용인 → 저금리 장기화 시그널.",
+    "tags": ["policy", "framework", "ait", "jackson-hole"],
+    "importance_score": 0.85,
+    "source_url": "https://www.federalreserve.gov/newsevents/speech/powell20200827a.htm"
+  },
+  {
+    "date": "2020-12-11",
+    "event_type": "POLICY",
+    "region": "US",
+    "title": "Pfizer 백신 FDA 긴급승인",
+    "detail": "FDA가 Pfizer-BioNTech COVID-19 백신 EUA 승인. 백신 로드맵 가시화로 경기 민감주 랠리 가속.",
+    "tags": ["covid", "vaccine", "fda"],
+    "importance_score": 0.85
+  },
+  {
+    "date": "2021-01-27",
+    "event_type": "VOL_SHOCK",
+    "region": "US",
+    "title": "GameStop 숏스퀴즈 절정",
+    "detail": "리테일 투자자 결집으로 GME 주가 +135%. 헤지펀드 Melvin Capital 등 대규모 손실, 공매도 구조 논쟁 + Robinhood 거래 제한 사태.",
+    "tags": ["short-squeeze", "retail", "gme"],
+    "importance_score": 0.8,
+    "source_url": "https://en.wikipedia.org/wiki/GameStop_short_squeeze"
   },
   {
     "date": "2022-02-24",
@@ -208,6 +383,15 @@
     "title": "트럼프 상호관세 발표",
     "detail": "미국의 상호관세(Reciprocal Tariffs) 전면 도입 발표. 관세 인상안 발효 시점을 둘러싼 글로벌 증시 변동성 급증.",
     "tags": ["tariff", "trade-war", "reciprocal"],
+    "importance_score": 0.95
+  },
+  {
+    "date": "2025-04-09",
+    "event_type": "TARIFF",
+    "region": "GLOBAL",
+    "title": "트럼프 상호관세 90일 유예 발표",
+    "detail": "트럼프가 중국 외 국가 대상 상호관세 90일 유예 선언. S&P500 +9.5%로 1940년대 이후 최대 일일 상승률, 패닉 → 안도 랠리 전환점.",
+    "tags": ["tariff", "trade-war", "rally"],
     "importance_score": 0.95
   }
 ]
