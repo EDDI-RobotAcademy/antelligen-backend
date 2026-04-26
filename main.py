@@ -49,6 +49,8 @@ import app.domains.news.infrastructure.orm.investment_news_orm  # noqa: F401
 import app.domains.schedule.infrastructure.orm.economic_event_orm  # noqa: F401
 import app.domains.dashboard.infrastructure.orm.nasdaq_bar_orm  # noqa: F401
 import app.domains.history_agent.infrastructure.orm.event_enrichment_orm  # noqa: F401
+import app.domains.stock.market_data.infrastructure.orm.daily_bar_orm  # noqa: F401
+import app.domains.stock.market_data.infrastructure.orm.popular_stock_ticker_orm  # noqa: F401
 import app.domains.smart_money.infrastructure.orm.investor_flow_orm  # noqa: F401
 import app.domains.smart_money.infrastructure.orm.global_portfolio_orm  # noqa: F401
 import app.domains.smart_money.infrastructure.orm.kr_portfolio_orm  # noqa: F401
@@ -189,6 +191,15 @@ async def lifespan(application: FastAPI):
         await job_bootstrap_nasdaq()
     except Exception as e:
         logging.getLogger(__name__).error("Nasdaq bootstrap failed (server continues normally): %s", str(e))
+
+    from app.infrastructure.scheduler.stock_bars_jobs import job_bootstrap_stock_bars
+
+    try:
+        await job_bootstrap_stock_bars()
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            "Stock bars bootstrap failed (server continues normally): %s", str(e)
+        )
 
     # 거시 경제 리스크 스냅샷 — Redis 영속 캐시가 4h 이내면 복원, 아니면 신규 생성.
     # YouTube/LLM quota 절약 목적: 코드 hot-reload 마다 매번 호출되는 것을 방지한다.

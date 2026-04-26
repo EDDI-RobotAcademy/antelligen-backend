@@ -15,6 +15,10 @@ from app.infrastructure.scheduler.disclosure_jobs import (
 )
 
 from app.infrastructure.scheduler.nasdaq_jobs import job_collect_nasdaq_bars
+from app.infrastructure.scheduler.stock_bars_jobs import (
+    job_backfill_new_tickers,
+    job_collect_stock_bars_daily,
+)
 from app.infrastructure.scheduler.macro_jobs import job_refresh_market_risk
 from app.infrastructure.scheduler.smart_money_jobs import job_collect_investor_flow, job_collect_global_portfolio, job_collect_kr_portfolio
 from app.infrastructure.scheduler.macro_timeline_jobs import job_warmup_macro_timeline
@@ -91,6 +95,26 @@ def create_disclosure_scheduler() -> AsyncIOScheduler:
         name="Collect NASDAQ daily OHLCV bars",
         replace_existing=True,
         misfire_grace_time=600,
+    )
+
+    # Daily 07:30 KST — collect 종목 일봉 OHLCV (popular + watchlist universe)
+    scheduler.add_job(
+        job_collect_stock_bars_daily,
+        trigger=CronTrigger(hour=7, minute=30, timezone=KST),
+        id="collect_stock_bars_daily",
+        name="Collect stock daily OHLCV bars",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+
+    # Hourly 분-15 — watchlist 신규 ticker lazy backfill
+    scheduler.add_job(
+        job_backfill_new_tickers,
+        trigger=CronTrigger(minute=15, timezone=KST),
+        id="backfill_new_tickers",
+        name="Backfill newly-added tickers (lazy)",
+        replace_existing=True,
+        misfire_grace_time=300,
     )
 
     # Daily 05:00 KST — 거시 경제 리스크 판단 스냅샷 갱신
@@ -199,5 +223,8 @@ def create_disclosure_scheduler() -> AsyncIOScheduler:
         misfire_grace_time=3600,
     )
 
-    logger.info("Disclosure scheduler configured (10 jobs: 1 hourly, 5 daily, 1 monthly, 3 seasonal)")
+    logger.info(
+        "Disclosure scheduler configured (12 jobs: 2 hourly, 7 daily, 1 monthly, "
+        "1 quarterly+weekly, 3 seasonal)"
+    )
     return scheduler
