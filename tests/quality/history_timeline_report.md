@@ -856,3 +856,119 @@ PR: `EDDI-RobotAcademy/antelligen-backend#52` (merge `3121086`), `antelligen-fro
 ### 18.6 결론
 
 타임라인 이벤트 모형 재정의 완료. NEWS / FUNDAMENTALS / 정기 FRED / 배당 모두 어댑터 단에서 완전 제거. ANNOUNCEMENT 세분류 라벨링 정상 작동(MANAGEMENT_CHANGE / MERGER_ACQUISITION / CONTRACT 등). MAJOR_EVENT fallback 비율은 follow-up 으로 점진 개선.
+
+---
+
+## 19. Event Impact (Abnormal Return) 파이프라인 — 2026-04-26 PR1+PR2+PR3
+
+배경: §17 / §18 마무리 후 사용자 진단 — "yfinance 직접 fetch만 있고 OHLCV 영구 저장 없음 + abnormal return 계산 자체가 없어 EventImportanceService 가 LLM 추정에만 의존". 정량 시그널 도입을 위해 4개 PR 분할로 OHLCV 적재 인프라 + AR 계산 + Importance 통합 + 프론트 노출.
+
+자세한 설계 결정과 트레이드오프는 `docs/adr/0002-event-impact-metric.md` 참조.
+
+### 19.1 구현 개요
+
+| PR | 커밋 | 범위 |
+|---|---|---|
+| PR1 | `d3e6f44` | `daily_bars` ORM + `popular_stock_tickers` seed + KST 07:30 cron + bootstrap |
+| PR2 | `990ca2a` | `event_impact_metrics` + `BenchmarkResolver` + `AbnormalReturnCalculator` + KST 08:00 cron |
+| PR3 | `9b27b32` | `TimelineEvent` AR 필드 + `_apply_event_impact_metrics` + Importance prompt 통합 + causality cached path (feature flag) |
+| PR4 (frontend) | `118fa33` | `ARBadge` + `TimelineEventCard` ▾ expand 영역 노출 |
+
+### 19.2 도메인 구조 (신규 sub-package)
+
+```
+app/domains/stock/market_data/
+ ├ domain/
+ │   ├ entity/         daily_bar.py, popular_stock_ticker.py, event_impact_metric.py
+ │   ├ value_object/   benchmark_ticker.py, event_impact_status.py, abnormal_return_result.py
+ │   └ service/        benchmark_resolver.py (Domain Service)
+ │                     abnormal_return_calculator.py (Domain Service, 순수)
+ ├ application/
+ │   ├ port/out/       6 ports (DailyBarRepository / DailyBarFetcher /
+ │   │                  EventImpactMetricRepository / PendingEventForImpactQuery /
+ │   │                  PopularStockTickerRepository / WatchlistTickerQuery)
+ │   └ usecase/        ingest_daily_bars_usecase.py
+ │                     compute_event_impact_usecase.py
+ ├ adapter/outbound/
+ │   ├ persistence/    *RepositoryImpl, PendingEventForImpactQueryImpl(LEFT JOIN)
+ │   └ external/       YahooFinanceDailyBarFetcher, CachedDailyBarFetcher(decorator)
+ └ infrastructure/     orm/{daily_bar,popular_stock_ticker,event_impact_metric}_orm.py
+                       mapper/*
+```
+
+### 19.3 데이터 흐름
+
+```
+[Cron] KST 07:30  job_collect_stock_bars_daily
+  → popular_pool ∪ user_watchlist distinct ticker → period=5d sliding window 재적재
+  → daily_bars (ON CONFLICT (ticker, bar_date) DO UPDATE)
+
+[Cron] KST 08:00  job_calculate_abnormal_returns_daily
+  → event_enrichments × event_impact_metrics LEFT JOIN
+    → metric COUNT < 2 인 (ticker, date, type, detail_hash) 추출 (cutoff = today - 21d)
+  → BenchmarkResolver(asset_type, region) → ^GSPC | ^KS11 | None
+  → AbnormalReturnCalculator(stock_bars, bench_bars, event_date, post_days=5/20)
+  → event_impact_metrics 6-tuple UK upsert
+
+[Realtime] /timeline 호출
+  → HistoryAgentUseCase.execute (EQUITY/ETF)
+    → _apply_event_impact_metrics(ticker, timeline)
+      → event_impact_repo.find_by_event_keys(4-tuple list)
+      → 각 event 에 abnormal_return_5d/20d/ar_status/benchmark_ticker stamp
+    → EventImportanceService.score(ticker, timeline)
+      → _build_line 에 "ar_5d=+3.21%" 텍스트 주입 (flag on)
+    → TimelineResponse 반환
+
+[Causality flag on]  causality_use_cached_bars=True
+  → gather_situation_node._fetch_ohlcv_cached
+    → CachedDailyBarFetcher(daily_bars repo, yfinance fallback)
+    → DB 적중 시 yfinance 호출 0회
+```
+
+### 19.4 ORM 스키마 (요약)
+
+**daily_bars** (PR1, alembic 0004): UK `(ticker, bar_date)`. open/high/low/close/volume/adj_close + source + bars_data_version. 2 인덱스(ticker_date_desc, bar_date).
+
+**popular_stock_tickers** (PR1, alembic 0005): KR top10 + US 메가캡 8 + ^GSPC/^KS11 벤치마크 시드.
+
+**event_impact_metrics** (PR2, alembic 0006): UK `(ticker, event_date, event_type, detail_hash, pre_days, post_days)`. status/cumulative_return_pct/benchmark_return_pct/abnormal_return_pct/sample_completeness/bars_data_version. `ix_event_impact_metrics_event_lookup` (ticker+date+type+hash) — 응답 빌드 시 4-tuple IN 쿼리 최적화.
+
+### 19.5 핵심 검증 결과
+
+| 검증 항목 | 결과 |
+|---|---|
+| **단위 테스트 — AbnormalReturnCalculator 골든 케이스** (+5% / +2% → AR=+3%) | ✅ |
+| **단위 테스트 — INSUFFICIENT_DATA / *_DATA_MISSING 분기** | ✅ |
+| **단위 테스트 — BenchmarkResolver: US/KR EQUITY → ^GSPC/^KS11, ETF/INDEX/MUTUALFUND → None** | ✅ |
+| **단위 테스트 — ComputeEventImpactUseCase 5d/20d 두 윈도우 동시 저장** | ✅ |
+| **단위 테스트 — CachedDailyBarFetcher DB hit/miss + write-through** | ✅ |
+| **단위 테스트 — _apply_event_impact_metrics OK/non-OK 분기** | ✅ |
+| **단위 테스트 — _ar_suffix prompt 라인 주입 (flag on/off)** | ✅ |
+| **회귀 — 전체 pytest** | **310 passed, 1 skipped** (PR1 누적 +44 신규 테스트) |
+| **alembic chain** | base → 0001 → 0002 → 0003 → 0004 → 0005 → 0006 |
+| **ruff** | clean (PR3 에서 enrichment_repository_impl 의 unused Union 함께 정리) |
+
+### 19.6 운영 가드 / 카나리 절차
+
+1. **PR1 머지 직후**: 서버 재기동 시 `job_bootstrap_stock_bars` 가 popular pool + watchlist 합집합 ticker 의 `period="max"` 백필 1회 실행. 동시 실행 처리량 제한 (`concurrency=2`). ticker 수 × 30년 일봉 ≈ 약 30K rows 수준 (popular 20 + watchlist 몇 개).
+2. **PR2 머지 직후**: KST 08:00 잡이 처음 실행되며 21일 이전 모든 시점 명확 이벤트에 대해 AR 계산. 이벤트 수 × 2 윈도우 = metric row 수. cutoff_date 가 21일 전이므로 ETF holdings 의 신규 이벤트는 다음 날 처리.
+3. **PR3 머지 직후**: timeline 응답에 AR 필드가 채워지기 시작. cache_v6 → v7 자동 무효화. flag `event_impact_in_importance_prompt=true` (default) 로 LLM prompt 에 AR 텍스트 합류 → importance 스코어 재추정. matrix.json 회귀 시 점수 변동폭 ±0.05 가드 권장.
+4. **causality flag**: `causality_use_cached_bars=false` (default) 유지. 카나리 후 on. ON 시 SURGE/PLUNGE causality 호출의 yfinance 의존 사라짐 (대부분 DB 적중).
+
+### 19.7 잔존 이슈 / Follow-up
+
+- **matrix.baseline_19.json 미생성**: 백엔드 PR 들이 머지·배포된 후 KST 08:00 잡이 최소 1회 실행돼 metric 이 채워진 시점에 산출 가능. 현재는 ADR + 보고서만.
+- **ETF holdings AR 미적용**: AR job 이 `event_enrichments.ticker` (= response_ticker) 로 BenchmarkResolver 호출 → ETF (SPY/QQQ) 는 BENCHMARK_MISSING. ETF 응답 안의 constituent_ticker 기준으로 별도 계산 필요. follow-up.
+- **Split 자동 invalidation**: `bars_data_version` 비교 로직만 있고 자동 재계산 트리거는 미구현. yfinance 의 `auto_adjust=True` 가 매일 sliding window 재적재로 점진 보정하지만 명시적 핸들러 없음.
+- **섹터별 벤치마크 (GICS)**: 현재 region 단일 (US→^GSPC). 소형주에 부적합 가능 — 분포 관찰 후 결정.
+- **분포 안정화 후 importance numeric weighting 격상**: 텍스트 주입 1차 단계 → 수치 보정 2차 단계 별도 ADR.
+
+### 19.8 산출물
+
+- 신규 ADR: `docs/adr/0002-event-impact-metric.md`
+- 본 §19
+- (대기) `tests/quality/matrix.baseline_19.json` — 잡 1회 실행 후 산출
+
+### 19.9 결론
+
+OHLCV 영구 적재 → AR 계산 → 응답·Importance 통합 → 프론트 노출 4단계 파이프라인 완료. EventImportanceService 가 LLM 추정에만 의존하던 구조에서 정량 시그널을 입력에 합류시킨 첫 단계. 분포 안정화 후 numeric weighting 으로 격상 가능.
