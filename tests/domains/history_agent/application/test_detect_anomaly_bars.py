@@ -6,6 +6,9 @@ import pytest
 
 from app.domains.dashboard.domain.entity.stock_bar import StockBar
 from app.domains.history_agent.application.usecase.detect_anomaly_bars_usecase import (
+    _CLUSTER_BIG_MOVE_THRESHOLD,
+    _CLUSTER_MIN_MEMBERS,
+    _CLUSTER_PROXIMITY_DAYS,
     _CUMULATIVE_5D_THRESHOLD,
     _CUMULATIVE_20D_THRESHOLD,
     _DRAWDOWN_RECOVERY_THRESHOLD,
@@ -16,6 +19,7 @@ from app.domains.history_agent.application.usecase.detect_anomaly_bars_usecase i
     _compute_sigma,
     _detect_cumulative_anomalies,
     _detect_drawdown_anomalies,
+    _detect_volatility_cluster_anomalies,
     detect_anomalies,
 )
 
@@ -389,4 +393,74 @@ def test_drawdown_passes_through_when_no_zscore_collision():
     same_day = [e for e in merged if e.date == bars[61].bar_date]
     assert len(same_day) == 1
     # z-score 우선 (drawdown 은 fallback)
+    assert same_day[0].type == "zscore"
+
+
+# ── KR5: 변동성 클러스터 ─────────────────────────────────────
+
+
+def test_cluster_constants_match_okr_spec():
+    assert _CLUSTER_BIG_MOVE_THRESHOLD == 0.05
+    assert _CLUSTER_PROXIMITY_DAYS == 5
+    assert _CLUSTER_MIN_MEMBERS == 2
+
+
+def test_volatility_cluster_groups_two_big_moves_within_5_days():
+    """5거래일 이내 |r|>5% 큰 변동 2건 → 클러스터 1개, 첫 봉에 마커."""
+    # 평탄 + 큰 변동 두 건 (3일 간격)
+    closes = [100.0] * 10 + [108.0] + [108.0, 108.0] + [98.0] + [98.0] * 5  # +8% 그리고 -9.3%
+    bars = _make_bars(closes)
+    events = _detect_volatility_cluster_anomalies(bars, "1D")
+    assert len(events) == 1
+    cluster = events[0]
+    assert cluster.type == "volatility_cluster"
+    assert cluster.cluster_size == 2
+    # cluster_end_date 가 두 번째 큰 변동의 봉 날짜
+    assert cluster.cluster_end_date is not None
+    assert cluster.date < cluster.cluster_end_date
+
+
+def test_volatility_cluster_no_event_when_only_one_big_move():
+    """단일 큰 변동은 클러스터 아님."""
+    closes = [100.0] * 10 + [108.0] + [108.0] * 10
+    bars = _make_bars(closes)
+    events = _detect_volatility_cluster_anomalies(bars, "1D")
+    assert events == []
+
+
+def test_volatility_cluster_splits_when_gap_exceeds_5_days():
+    """6거래일 떨어진 두 큰 변동은 별도 클러스터로 분리(둘 다 단일 → 클러스터 0)."""
+    # 큰 변동 1건 → 7일 평탄 → 큰 변동 1건. 각각 단일 멤버 → 클러스터 미생성.
+    closes = [100.0] * 5 + [108.0] + [108.0] * 7 + [98.0] + [98.0] * 5
+    bars = _make_bars(closes)
+    events = _detect_volatility_cluster_anomalies(bars, "1D")
+    assert events == []
+
+
+def test_volatility_cluster_only_for_daily_interval():
+    closes = [100.0] * 10 + [108.0, 108.0, 98.0]
+    bars = _make_bars(closes)
+    assert _detect_volatility_cluster_anomalies(bars, "1W") == []
+    assert _detect_volatility_cluster_anomalies(bars, "1M") == []
+
+
+def test_volatility_cluster_three_members_records_correct_size():
+    """3건 묶음은 cluster_size=3."""
+    # 3건 큰 변동, 모두 5일 이내 (1, 3, 5번째)
+    closes = [100.0] * 5 + [108.0] + [108.0] + [98.0] + [98.0] + [108.0] + [108.0] * 5
+    bars = _make_bars(closes)
+    events = _detect_volatility_cluster_anomalies(bars, "1D")
+    assert len(events) == 1
+    assert events[0].cluster_size == 3
+
+
+def test_cluster_skipped_in_dedup_when_zscore_on_same_day():
+    """같은 날 z-score 가 잡히면 cluster 마커는 skip(z-score 우선)."""
+    # 60봉 평탄 + -11% (z-score+cluster 동시 가능 시작점) 그리고 +6% (cluster 두 번째)
+    closes = [100.0] * 61 + [89.0, 89.0, 94.5]
+    bars = _make_bars(closes)
+    merged = detect_anomalies(bars, "1D", "AAPL")
+    # 첫 봉(idx 61)은 z-score 가 우선 잡힘.
+    same_day = [e for e in merged if e.date == bars[61].bar_date]
+    assert len(same_day) == 1
     assert same_day[0].type == "zscore"

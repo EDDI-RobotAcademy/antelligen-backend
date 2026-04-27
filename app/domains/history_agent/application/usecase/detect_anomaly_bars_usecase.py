@@ -5,6 +5,7 @@
 2. **cumulative window (KR2)** — 1D 에서 5/20일 누적 수익률 ±10/15% 임계 진입 봉
 3. **drawdown (KR3)** — 1D 에서 60봉 고점 대비 -10% 시작 / -3% 회복 변곡점
 4. **robust σ (KR4 디버그)** — settings.anomaly_robust_sigma_method 로 stable/mad 방식 swap
+5. **volatility cluster (KR5)** — 1D 에서 5거래일 이내 |r|>5% 큰 변동 2건 이상 묶음의 첫 봉
 
 - k: 2.5 공통 (표준편차 배수)
 - window: 봉 단위별 σ 추정 기간
@@ -13,8 +14,6 @@
 
 KR1 종목 군별 floor 우선순위 (1D 에만 적용):
 - KOSPI(`.KS`): 5%   / KOSDAQ(`.KQ`): 7%   / 그 외(미국 등): 5%
-
-향후 follow-up: KR5 변동성 클러스터.
 """
 import logging
 import math
@@ -90,6 +89,11 @@ _DRAWDOWN_RECOVERY_THRESHOLD = -0.03
 # KR4 — robust σ 디버그 모드. stable filter A안의 안정 구간 임계값.
 _STABLE_RETURN_THRESHOLD = 0.03  # |r|<3% 만 σ 추정 입력
 _MAD_TO_SIGMA_FACTOR = 1.4826    # 정규분포 환산
+
+# KR5 — 변동성 클러스터 (1D 전용).
+_CLUSTER_BIG_MOVE_THRESHOLD = 0.05   # |r|>5% 큰 변동
+_CLUSTER_PROXIMITY_DAYS = 5          # 5거래일 이내
+_CLUSTER_MIN_MEMBERS = 2             # 최소 2건 이상 묶음만 클러스터
 
 
 def _compute_returns(bars: List[StockBar]) -> list[float]:
@@ -389,15 +393,82 @@ def _detect_drawdown_anomalies(
     return events
 
 
+def _detect_volatility_cluster_anomalies(
+    bars: List[StockBar], chart_interval: str,
+) -> List[AnomalyBarResponse]:
+    """KR5 — 변동성 클러스터 (1D 전용).
+
+    |r|>5% 큰 변동 봉들을 5거래일 이내 그룹으로 묶고, 2건 이상이면 클러스터.
+    클러스터의 **첫 봉**에만 type="volatility_cluster" 마커를 1개 부여하고,
+    cluster_size 와 cluster_end_date 메타로 구간 정보 보존. frontend 가
+    이 정보로 시작-끝 차트 음영 영역과 헤더 라벨을 그릴 수 있다.
+
+    OKR 명세상 클러스터 내 개별 봉 마커 숨김은 frontend(KR7) 가 토글로 처리한다.
+    """
+    if chart_interval != "1D":
+        return []
+    if len(bars) <= 5:
+        return []
+
+    returns = _compute_returns(bars)
+    big_idx: list[int] = []
+    for i, r in enumerate(returns):
+        if abs(r) > _CLUSTER_BIG_MOVE_THRESHOLD:
+            big_idx.append(i + 1)  # bars 인덱스(returns[i] = bars[i+1] 의 변동)
+
+    if len(big_idx) < _CLUSTER_MIN_MEMBERS:
+        return []
+
+    # 5거래일 이내 그룹핑.
+    clusters: list[list[int]] = []
+    current: list[int] = []
+    for idx in big_idx:
+        if not current or idx - current[-1] <= _CLUSTER_PROXIMITY_DAYS:
+            current.append(idx)
+        else:
+            if len(current) >= _CLUSTER_MIN_MEMBERS:
+                clusters.append(current)
+            current = [idx]
+    if len(current) >= _CLUSTER_MIN_MEMBERS:
+        clusters.append(current)
+
+    events: List[AnomalyBarResponse] = []
+    for cluster in clusters:
+        first_idx = cluster[0]
+        last_idx = cluster[-1]
+        # 클러스터 첫 봉의 변동률.
+        first_return_pct = returns[first_idx - 1] * 100.0 if first_idx >= 1 else 0.0
+        events.append(
+            AnomalyBarResponse(
+                date=bars[first_idx].bar_date,
+                type="volatility_cluster",
+                return_pct=round(first_return_pct, 4),
+                z_score=0.0,
+                direction="up" if first_return_pct > 0 else "down",
+                close=round(bars[first_idx].close, 4),
+                volume_ratio=_volume_ratio(bars, first_idx, 60),
+                time_of_day=_time_of_day(bars, first_idx, chart_interval),
+                cumulative_return_1d=_cumulative_return(bars, first_idx, 1),
+                cumulative_return_5d=_cumulative_return(bars, first_idx, 5),
+                cumulative_return_20d=_cumulative_return(bars, first_idx, 20),
+                cluster_size=len(cluster),
+                cluster_end_date=bars[last_idx].bar_date,
+                causality=None,
+            )
+        )
+
+    return events
+
+
 def detect_anomalies(
     bars: List[StockBar], chart_interval: str, ticker: str = "",
 ) -> List[AnomalyBarResponse]:
     """순수 함수 — bars + interval + ticker → 이상치 봉 목록.
 
-    z-score + 누적 + drawdown 결과를 dedup 정책에 따라 합쳐 반환:
-    - 같은 날 z-score 와 다른 type 충돌 → **z-score 우선**(중복 마커 회피)
-    - 같은 날 5일 누적 + 20일 누적 → **20일 우선**(더 큰 패턴)
-    - 같은 날 drawdown 마커는 z-score 가 없으면 통과 (drawdown 은 사이클 정보로 의미 큼)
+    z-score + 누적 + drawdown + cluster 결과를 dedup 정책에 따라 합쳐 반환:
+    - 같은 날 z-score 와 다른 type 충돌 → **z-score 우선**
+    - 같은 날 5일 누적 + 20일 누적 → **20일 우선**
+    - drawdown / volatility_cluster 는 같은 날 다른 마커 있으면 skip
     날짜 오름차순 정렬.
 
     `ticker` default `""` 는 backward-compat — 종목 군 분류 없이 미국(US) fallback.
@@ -405,6 +476,7 @@ def detect_anomalies(
     zscore_events = _detect_zscore_anomalies(bars, chart_interval, ticker)
     cumulative_events = _detect_cumulative_anomalies(bars, chart_interval)
     drawdown_events = _detect_drawdown_anomalies(bars, chart_interval)
+    cluster_events = _detect_volatility_cluster_anomalies(bars, chart_interval)
 
     by_date: Dict[object, AnomalyBarResponse] = {}
     # z-score 우선 → 먼저 채움.
@@ -420,10 +492,13 @@ def detect_anomalies(
                 by_date[ev.date] = ev
             continue
         by_date[ev.date] = ev
-    # Drawdown: 같은 날 z-score 가 있으면 skip(z-score 우선), 누적은 덮어쓰지 않음.
-    # drawdown 시작/회복은 사이클 시그널이라 누적 마커보다 의미상 우선이지만, 기존
-    # 마커 정책을 단순화 위해 누적 우선 정책 유지(향후 KR8 검증에서 분포 보고 조정).
+    # Drawdown: 같은 날 다른 마커 있으면 skip(누적/z-score 우선).
     for ev in drawdown_events:
+        if ev.date not in by_date:
+            by_date[ev.date] = ev
+    # Volatility cluster: 같은 날 다른 마커 있으면 skip(z-score 등 우선).
+    # 클러스터 마커는 frontend KR7 토글로 ON/OFF 가능하므로, dedup 보다는 추가 정보로 활용.
+    for ev in cluster_events:
         if ev.date not in by_date:
             by_date[ev.date] = ev
 
@@ -450,6 +525,7 @@ class DetectAnomalyBarsUseCase:
             "cumulative_20d": sum(1 for e in events if e.type == "cumulative_20d"),
             "drawdown_start": sum(1 for e in events if e.type == "drawdown_start"),
             "drawdown_recovery": sum(1 for e in events if e.type == "drawdown_recovery"),
+            "volatility_cluster": sum(1 for e in events if e.type == "volatility_cluster"),
         }
         logger.info(
             "[DetectAnomalyBars] ticker=%s chart_interval=%s bars=%d anomalies=%d %s",

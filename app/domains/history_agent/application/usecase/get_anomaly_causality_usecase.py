@@ -47,7 +47,7 @@ _DETECTION_TYPE_TO_PROMPT_KEY: dict[str, str] = {
     "drawdown_recovery": "drawdown_recovery",
     "trend": "trend",
     "volatility_cluster": "volatility_cluster",
-}
+}  # KR5 volatility_cluster 는 이미 매핑돼 있음 — KR6 PromptBuilder 가 동일 키로 분기.
 
 
 def _normalize_detection_type(raw: Optional[str]) -> str:

@@ -8,12 +8,15 @@ class AnomalyBarResponse(BaseModel):
     """차트에 마커로 표시할 이상치 봉 1건.
 
     - `type`: 탐지기 분류. 다층 탐지로 확장됨.
-      "zscore"             — 단일봉 z-score (기존 ★)
-      "cumulative_5d"      — 5거래일 누적 ±10% 진입 봉 (🔻)
-      "cumulative_20d"     — 20거래일 누적 ±15% 진입 봉 (📉)
-      "drawdown_start"     — 60봉 고점 대비 -10% 첫 진입 봉 (🔽)
-      "drawdown_recovery"  — drawdown 구간에서 -3% 회복 봉 (🔼)
+      "zscore"              — 단일봉 z-score (기존 ★)
+      "cumulative_5d"       — 5거래일 누적 ±10% 진입 봉 (🔻)
+      "cumulative_20d"      — 20거래일 누적 ±15% 진입 봉 (📉)
+      "drawdown_start"      — 60봉 고점 대비 -10% 첫 진입 봉 (🔽)
+      "drawdown_recovery"   — drawdown 구간에서 -3% 회복 봉 (🔼)
+      "volatility_cluster"  — 5거래일 이내 |r|>5% 큰 변동 2건 이상 묶음의 첫 봉 (⚡)
       backward-compat 위해 default "zscore".
+    - `cluster_size`/`cluster_end_date`: KR5 — 변동성 클러스터 메타.
+      type="volatility_cluster" 일 때만 채워짐. 클러스터 구간 시각화에 사용.
     - `sigma_method`: KR4 디버그 — z-score 계산에 사용한 σ 방식.
       "stdev"  — 기존 statistics.stdev (default)
       "stable" — 안정 구간(|r|<3%) stdev (이상치 제외)
@@ -44,6 +47,8 @@ class AnomalyBarResponse(BaseModel):
     cumulative_return_5d: Optional[float] = None
     cumulative_return_20d: Optional[float] = None
     sigma_method: Optional[str] = None
+    cluster_size: Optional[int] = None
+    cluster_end_date: Optional[date] = None
     causality: Optional[str] = None
 
 
