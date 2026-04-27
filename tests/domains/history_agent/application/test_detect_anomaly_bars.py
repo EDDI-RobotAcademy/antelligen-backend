@@ -1,4 +1,4 @@
-"""DetectAnomalyBarsUseCase 단위 테스트 (§13.4 C / §17.2)."""
+"""DetectAnomalyBarsUseCase 단위 테스트 (§13.4 C / §17.2 / OKR 다층 탐지 KR1·KR2)."""
 from datetime import date, timedelta
 from typing import List
 
@@ -6,7 +6,12 @@ import pytest
 
 from app.domains.dashboard.domain.entity.stock_bar import StockBar
 from app.domains.history_agent.application.usecase.detect_anomaly_bars_usecase import (
+    _CUMULATIVE_5D_THRESHOLD,
+    _CUMULATIVE_20D_THRESHOLD,
+    _FLOOR_BY_TICKER_GROUP_1D,
     _PARAMS_BY_INTERVAL,
+    _classify_ticker_group,
+    _detect_cumulative_anomalies,
     detect_anomalies,
 )
 
@@ -99,3 +104,176 @@ def test_interval_params_consistency():
     assert _PARAMS_BY_INTERVAL["1Q"].window == 40
     assert _PARAMS_BY_INTERVAL["1Q"].floor_pct == 10.0
     assert _PARAMS_BY_INTERVAL["1Q"].max_count == 5
+
+
+# ── KR1: 종목 군별 floor ────────────────────────────────────
+
+
+def test_classify_ticker_group_kospi_kosdaq_us():
+    assert _classify_ticker_group("005930.KS") == "KOSPI"
+    assert _classify_ticker_group("068270.KQ") == "KOSDAQ"
+    assert _classify_ticker_group("AAPL") == "US"
+    assert _classify_ticker_group("") == "US"
+    assert _classify_ticker_group("aapl") == "US"
+
+
+def test_classify_ticker_group_uppercased_correctly():
+    """소문자 suffix 도 인식."""
+    assert _classify_ticker_group("005930.ks") == "KOSPI"
+    assert _classify_ticker_group("068270.kq") == "KOSDAQ"
+
+
+def test_floor_by_group_table_matches_okr_spec():
+    """OKR 명세 — KOSPI 5% / KOSDAQ 7% / US 5%."""
+    assert _FLOOR_BY_TICKER_GROUP_1D["KOSPI"] == 5.0
+    assert _FLOOR_BY_TICKER_GROUP_1D["KOSDAQ"] == 7.0
+    assert _FLOOR_BY_TICKER_GROUP_1D["US"] == 5.0
+
+
+def test_kospi_floor_blocks_below_5_percent():
+    """KOSPI 종목 1D 에서 4.9% 변동은 floor 미만 → 탐지 X (k×σ 도 작은 평상 σ 환경)."""
+    closes = [100.0] * 61
+    closes.append(104.9)  # +4.9% — KOSPI floor=5% 미만
+    bars = _make_bars(closes)
+    anomalies = detect_anomalies(bars, "1D", "005930.KS")
+    assert anomalies == []
+
+
+def test_kospi_floor_passes_above_5_percent():
+    """KOSPI 종목 5.1% 변동은 floor 초과 → 탐지."""
+    closes = [100.0] * 61
+    closes.append(105.1)
+    bars = _make_bars(closes)
+    anomalies = detect_anomalies(bars, "1D", "005930.KS")
+    assert len(anomalies) == 1
+    assert anomalies[0].type == "zscore"
+
+
+def test_kosdaq_floor_blocks_below_7_percent():
+    """KOSDAQ 종목 6.9% 는 floor 미만."""
+    closes = [100.0] * 61
+    closes.append(106.9)
+    bars = _make_bars(closes)
+    anomalies = detect_anomalies(bars, "1D", "068270.KQ")
+    assert anomalies == []
+
+
+def test_kosdaq_floor_passes_above_7_percent():
+    """KOSDAQ 종목 7.1% 는 floor 초과."""
+    closes = [100.0] * 61
+    closes.append(107.1)
+    bars = _make_bars(closes)
+    anomalies = detect_anomalies(bars, "1D", "068270.KQ")
+    assert len(anomalies) == 1
+
+
+def test_kospi_floor_only_applies_to_1d():
+    """1W 이상 봉은 종목 군 floor 무관 — `_PARAMS_BY_INTERVAL` 그대로."""
+    # 1M floor=5% — KOSPI 종목이라도 동일 적용. 4.9% 는 1M floor 미달 → 탐지 X.
+    closes = [100.0] * 37
+    closes.append(104.9)
+    bars = _make_bars(closes)
+    anomalies = detect_anomalies(bars, "1M", "005930.KS")
+    assert anomalies == []
+
+
+# ── KR2: 5/20일 누적 윈도우 ──────────────────────────────
+
+
+def test_cumulative_5d_threshold_constants():
+    assert _CUMULATIVE_5D_THRESHOLD == 0.10
+    assert _CUMULATIVE_20D_THRESHOLD == 0.15
+
+
+def test_cumulative_5d_triggers_on_first_breach():
+    """5거래일 누적 -10% 진입 봉을 탐지 → type=cumulative_5d."""
+    closes = [100.0] * 25
+    # 5일 사이 -11% 만들기: 25일 close → 26일 close 가 -11%
+    closes.append(89.0)  # 26번째: 직전 5봉(idx 21) close=100 대비 -11%
+    bars = _make_bars(closes)
+    cumulative = _detect_cumulative_anomalies(bars, "1D")
+    assert any(e.type == "cumulative_5d" for e in cumulative)
+    ev = next(e for e in cumulative if e.type == "cumulative_5d")
+    assert ev.direction == "down"
+    assert ev.return_pct < -10.0
+
+
+def test_cumulative_5d_no_trigger_under_threshold():
+    """5거래일 -9% 는 임계 미만 → 탐지 X."""
+    closes = [100.0] * 25
+    closes.append(91.0)  # -9%
+    bars = _make_bars(closes)
+    cumulative = _detect_cumulative_anomalies(bars, "1D")
+    assert all(e.type != "cumulative_5d" for e in cumulative)
+
+
+def test_cumulative_5d_does_not_retrigger_during_continuous_breach():
+    """연속 임계 위 구간에서 trigger 는 진입 봉 1번만 — 재무장 후 재진입 시 다시."""
+    # 25봉 평탄 → 26봉부터 -11%, -12%, -13% (모두 임계 위)
+    closes = [100.0] * 25 + [89.0, 88.0, 87.0, 86.0, 85.0, 84.0]  # 31개
+    bars = _make_bars(closes)
+    cumulative = _detect_cumulative_anomalies(bars, "1D")
+    cum5 = [e for e in cumulative if e.type == "cumulative_5d"]
+    # 첫 진입 봉만 마커. 빠져나가지 않으면 재트리거 X.
+    assert len(cum5) == 1
+
+
+def test_cumulative_20d_triggers():
+    """20거래일 -15% 누적 진입 봉 탐지."""
+    closes = [100.0] * 30
+    closes.append(83.0)  # 31번째 (idx 30): idx 10 대비 -17%
+    bars = _make_bars(closes)
+    cumulative = _detect_cumulative_anomalies(bars, "1D")
+    assert any(e.type == "cumulative_20d" for e in cumulative)
+
+
+def test_cumulative_only_for_daily_interval():
+    """1W 이상 봉은 누적 탐지기 동작 X."""
+    closes = [100.0] * 25
+    closes.append(80.0)
+    bars = _make_bars(closes)
+    assert _detect_cumulative_anomalies(bars, "1W") == []
+    assert _detect_cumulative_anomalies(bars, "1M") == []
+    assert _detect_cumulative_anomalies(bars, "1Q") == []
+
+
+# ── dedup 정책 ────────────────────────────────────────────
+
+
+def test_zscore_takes_precedence_over_cumulative_on_same_day():
+    """같은 날 z-score 와 누적 모두 탐지되면 z-score 우선."""
+    # 60봉 평탄 + 1봉 -12% (단일봉 -12% 이고 5일 누적도 -12%)
+    closes = [100.0] * 61
+    closes.append(88.0)
+    bars = _make_bars(closes)
+    merged = detect_anomalies(bars, "1D", "AAPL")
+    # 단 한 건만 — z-score 우선 표기.
+    same_day = [e for e in merged if e.date == bars[61].bar_date]
+    assert len(same_day) == 1
+    assert same_day[0].type == "zscore"
+
+
+def test_cumulative_event_passes_when_no_zscore_on_same_day():
+    """같은 날 z-score 가 없으면 누적이 그대로 통과."""
+    # 매일 -2.1% 씩 5거래일 → 누적 ≈ -10% 하지만 단일봉 변동은 작음(z-score 미발동).
+    closes = [100.0]
+    for _ in range(60):
+        closes.append(closes[-1] * 1.001)  # 평탄
+    # 5일간 -2.5%씩 (전체 -12% 누적, 단일봉 -2.5% 는 평상 σ 보다 큼 — z-score 도 잡힐 수 있음)
+    # 더 안전하게: 5일간 -2.0% (단일봉 z-score floor=2% 경계)
+    for _ in range(5):
+        closes.append(closes[-1] * 0.978)  # -2.2% × 5 ≈ -10.6%
+    bars = _make_bars(closes)
+    merged = detect_anomalies(bars, "1D", "AAPL")
+    # 누적 탐지가 1건은 있어야 한다(US floor 5% 라 단일봉은 미발동).
+    cum_events = [e for e in merged if e.type == "cumulative_5d"]
+    assert len(cum_events) >= 1
+
+
+def test_default_ticker_falls_back_to_us():
+    """ticker 미전달 시 backward-compat 으로 US floor 적용."""
+    closes = [100.0] * 61
+    closes.append(105.5)  # 5.5% — US floor=5% 초과
+    bars = _make_bars(closes)
+    anomalies = detect_anomalies(bars, "1D")  # ticker 인자 미전달
+    assert len(anomalies) == 1
