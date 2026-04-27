@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.response.base_response import BaseResponse
@@ -15,6 +15,12 @@ from app.domains.sentiment.adapter.outbound.external.toss_community_client impor
 )
 from app.domains.sentiment.adapter.outbound.persistence.sns_post_repository_impl import (
     SnsPostRepositoryImpl,
+)
+from app.domains.sentiment.application.request.analyze_sns_signal_request import (
+    AnalyzeSnsSignalRequest,
+)
+from app.domains.sentiment.application.request.collect_sns_posts_request import (
+    CollectSnsPostsRequest,
 )
 from app.domains.sentiment.application.usecase.analyze_sns_signal_usecase import (
     AnalyzeSnsSignalUseCase,
@@ -33,8 +39,7 @@ router = APIRouter(prefix="/sentiment", tags=["Sentiment"])
 
 @router.post("/collect", status_code=201)
 async def collect_sns_posts(
-    ticker: str = Query(..., description="종목 티커 (예: 005930, AAPL)"),
-    limit_per_platform: int = Query(50, ge=1, le=200, description="플랫폼당 수집 한도"),
+    request: CollectSnsPostsRequest,
     db: AsyncSession = Depends(get_vector_db),
 ):
     """SNS 게시물 수집 (Reddit + 네이버 종목토론 + 토스stub) → PostgreSQL 적재."""
@@ -49,14 +54,13 @@ async def collect_sns_posts(
     collectors.append(TossCommunityClient())            # is_available=False → gather에서 skip됨
 
     usecase = CollectSnsPostsUseCase(collectors=collectors, repository=repository)
-    result = await usecase.execute(ticker, limit_per_platform)
+    result = await usecase.execute(request.ticker, request.limit_per_platform)
     return BaseResponse.ok(data=result)
 
 
 @router.post("/analyze")
 async def analyze_sns_signal(
-    ticker: str = Query(..., description="종목 티커 (예: 005930, AAPL)"),
-    lookback_limit: int = Query(100, ge=1, le=500, description="분석할 최근 게시물 수"),
+    request: AnalyzeSnsSignalRequest,
     db: AsyncSession = Depends(get_vector_db),
 ):
     """DB의 최근 게시물 → GPT-4o-mini 감정분석 → SnsSignalResult 반환."""
@@ -72,5 +76,5 @@ async def analyze_sns_signal(
         analysis_port=analysis_port,
         keyword_resolver=keyword_resolver,
     )
-    result = await usecase.execute(ticker, lookback_limit)
+    result = await usecase.execute(request.ticker, request.lookback_limit)
     return BaseResponse.ok(data=result.to_dict())
