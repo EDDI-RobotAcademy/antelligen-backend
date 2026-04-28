@@ -1,7 +1,21 @@
 from datetime import date
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
+
+
+# 다층 탐지기 type 집합. frontend AnomalyBarType union 과 동기 — 새 type 추가 시 양측 모두 갱신.
+AnomalyBarType = Literal[
+    "zscore",
+    "cumulative_5d",
+    "cumulative_20d",
+    "drawdown_start",
+    "drawdown_recovery",
+    "volatility_cluster",
+]
+AnomalyDirection = Literal["up", "down"]
+AnomalyTimeOfDay = Literal["GAP", "INTRADAY"]
+AnomalySigmaMethod = Literal["stdev", "stable", "mad"]
 
 
 class AnomalyBarResponse(BaseModel):
@@ -36,17 +50,17 @@ class AnomalyBarResponse(BaseModel):
       엔드포인트가 lazy-fetch 한다.
     """
     date: date
-    type: str = "zscore"
+    type: AnomalyBarType = "zscore"
     return_pct: float
     z_score: float
-    direction: str
+    direction: AnomalyDirection
     close: float
     volume_ratio: Optional[float] = None
-    time_of_day: Optional[str] = None
+    time_of_day: Optional[AnomalyTimeOfDay] = None
     cumulative_return_1d: Optional[float] = None
     cumulative_return_5d: Optional[float] = None
     cumulative_return_20d: Optional[float] = None
-    sigma_method: Optional[str] = None
+    sigma_method: Optional[AnomalySigmaMethod] = None
     cluster_size: Optional[int] = None
     cluster_end_date: Optional[date] = None
     causality: Optional[str] = None
