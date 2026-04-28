@@ -45,6 +45,9 @@ def app_with_mocks():
     redis = MagicMock()
     redis.get = AsyncMock(return_value=None)
     redis.setex = AsyncMock(return_value=True)
+    # cache stampede 락 — set(nx=True) / delete 가 정상 동작하도록 mock.
+    redis.set = AsyncMock(return_value=True)
+    redis.delete = AsyncMock(return_value=1)
 
     app.dependency_overrides[get_collect_important_macro_events_usecase] = lambda: uc
     app.dependency_overrides[get_redis] = lambda: redis

@@ -66,6 +66,44 @@ _VALID_MACRO_REGIONS = {"US", "KR", "GLOBAL"}
 _MACRO_CACHE_VERSION = "v1"
 _SSE_KEEPALIVE_SECONDS = 15
 
+# macro-timeline cache stampede 방지용 분산 락 파라미터.
+# usecase.execute() 가 LLM 랭커 + FRED + GPR 등을 호출하므로 cold 계산 시 ~30s 가 가능.
+# LOCK_TTL 은 충분히 길게 잡고 (60s), wait 는 빠르게 폴링 (1s × 30회 = 30s) 후 timeout 시
+# 락 없이 계산을 진행해 graceful degrade.
+_MACRO_LOCK_TTL_SECONDS = 60
+_MACRO_LOCK_WAIT_INTERVAL = 1.0
+_MACRO_LOCK_MAX_RETRIES = 30
+
+
+async def _try_acquire_macro_lock(redis: aioredis.Redis, lock_key: str) -> bool:
+    """macro-timeline cache 갱신용 SETNX 락. Redis 장애 시 graceful (락 없이 진행)."""
+    try:
+        return bool(await redis.set(lock_key, "1", nx=True, ex=_MACRO_LOCK_TTL_SECONDS))
+    except aioredis.RedisError as exc:
+        logger.warning("[macro-timeline] 락 획득 실패 (%s): %s — 락 없이 진행", lock_key, exc)
+        return True
+
+
+async def _release_macro_lock(redis: aioredis.Redis, lock_key: str) -> None:
+    try:
+        await redis.delete(lock_key)
+    except aioredis.RedisError:
+        pass
+
+
+async def _wait_for_macro_cache(redis: aioredis.Redis, cache_key: str) -> Optional[bytes]:
+    """다른 worker 가 락을 보유한 경우 캐시가 채워질 때까지 짧게 폴링한다.
+    timeout 시 None 을 반환해 호출자가 락 없이 계산을 진행하도록 한다."""
+    for _ in range(_MACRO_LOCK_MAX_RETRIES):
+        await asyncio.sleep(_MACRO_LOCK_WAIT_INTERVAL)
+        try:
+            cached = await redis.get(cache_key)
+        except aioredis.RedisError:
+            return None
+        if cached:
+            return cached
+    return None
+
 
 async def _resolve_corp_code(ticker: str, db: AsyncSession) -> Optional[str]:
     """yfinance ticker → DART corp_code(8자리). DB 우선, miss 시 DART corpCode.xml fallback.
@@ -259,6 +297,7 @@ async def get_macro_timeline(
     settings = get_settings()
     effective_limit = limit if limit is not None else settings.macro_timeline_top_n
     cache_key = f"macro_timeline:{_MACRO_CACHE_VERSION}:{region_upper}:{lookback_upper}:{effective_limit}"
+    lock_key = f"lock:{cache_key}"
 
     cached = await redis.get(cache_key)
     if cached:
@@ -267,18 +306,34 @@ async def get_macro_timeline(
         except Exception as exc:  # noqa: BLE001
             logger.warning("[macro-timeline] 캐시 디코드 실패: %s", exc)
 
-    events = await usecase.execute(
-        region=region_upper, period=lookback_upper, top_n=effective_limit,
-    )
-    response = TimelineResponse(
-        ticker=None,
-        lookback_range=lookback_upper,
-        count=len(events),
-        events=events,
-        region=region_upper,
-        asset_type="MACRO",
-    )
-    await redis.setex(cache_key, settings.macro_cache_ttl_seconds, response.model_dump_json())
+    # cache miss — 분산 락 시도. 다른 worker 가 보유 중이면 잠시 대기 후 캐시 재시도.
+    lock_acquired = await _try_acquire_macro_lock(redis, lock_key)
+    if not lock_acquired:
+        cached = await _wait_for_macro_cache(redis, cache_key)
+        if cached:
+            try:
+                return BaseResponse.ok(data=TimelineResponse.model_validate_json(cached))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[macro-timeline] 락 대기 후 캐시 디코드 실패: %s", exc)
+        else:
+            logger.warning("[macro-timeline] 락 대기 timeout (%s) — 락 없이 계산 진행", lock_key)
+
+    try:
+        events = await usecase.execute(
+            region=region_upper, period=lookback_upper, top_n=effective_limit,
+        )
+        response = TimelineResponse(
+            ticker=None,
+            lookback_range=lookback_upper,
+            count=len(events),
+            events=events,
+            region=region_upper,
+            asset_type="MACRO",
+        )
+        await redis.setex(cache_key, settings.macro_cache_ttl_seconds, response.model_dump_json())
+    finally:
+        if lock_acquired:
+            await _release_macro_lock(redis, lock_key)
     return BaseResponse.ok(data=response)
 
 
@@ -324,6 +379,7 @@ async def stream_macro_timeline(
     cache_key = (
         f"macro_timeline:{_MACRO_CACHE_VERSION}:{region_upper}:{lookback_upper}:{effective_limit}"
     )
+    lock_key = f"lock:{cache_key}"
 
     queue: asyncio.Queue = asyncio.Queue()
 
@@ -334,6 +390,7 @@ async def stream_macro_timeline(
             logger.warning("[stream_macro_timeline] progress 전송 실패: %s", exc)
 
     async def _run() -> None:
+        lock_acquired = False
         try:
             cached = await redis.get(cache_key)
             if cached:
@@ -343,6 +400,23 @@ async def stream_macro_timeline(
                     return
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("[stream_macro_timeline] 캐시 디코드 실패: %s", exc)
+
+            # cache miss — 분산 락 시도. 다른 worker 가 보유 중이면 캐시 대기 후 재시도.
+            lock_acquired = await _try_acquire_macro_lock(redis, lock_key)
+            if not lock_acquired:
+                cached = await _wait_for_macro_cache(redis, cache_key)
+                if cached:
+                    try:
+                        TimelineResponse.model_validate_json(cached)
+                        await queue.put({
+                            "type": "done",
+                            "data": cached.decode() if isinstance(cached, (bytes, bytearray)) else cached,
+                        })
+                        return
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("[stream_macro_timeline] 락 대기 후 캐시 디코드 실패: %s", exc)
+                else:
+                    logger.warning("[stream_macro_timeline] 락 대기 timeout (%s) — 락 없이 계산 진행", lock_key)
 
             events = await usecase.execute(
                 region=region_upper,
@@ -371,6 +445,9 @@ async def stream_macro_timeline(
                 region_upper, lookback_upper, type(exc).__name__,
             )
             await queue.put({"type": "error", "message": "매크로 타임라인 생성 중 오류가 발생했습니다."})
+        finally:
+            if lock_acquired:
+                await _release_macro_lock(redis, lock_key)
 
     task = asyncio.create_task(_run())
 
