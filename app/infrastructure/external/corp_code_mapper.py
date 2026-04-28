@@ -20,7 +20,9 @@ from app.domains.disclosure.adapter.outbound.external.dart_corp_code_client impo
 logger = logging.getLogger(__name__)
 
 _CACHE_KEY = "corp_code_map:v1"
-_CACHE_TTL_SEC = 60 * 60 * 24 * 30  # 30일 — DART corpCode 갱신 주기보다 짧게
+# 7일 — 30일에서 단축. 신규 상장/상폐 기업이 1주 이내 cache 에 반영되도록.
+# DART corpCode.xml 은 동적 ZIP API 라 ETag/Last-Modified 검증이 불확실해 단순 TTL 만 사용.
+_CACHE_TTL_SEC = 60 * 60 * 24 * 7
 
 
 def _normalize_ticker(ticker: str) -> str:
