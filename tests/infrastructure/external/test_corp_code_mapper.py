@@ -151,7 +151,7 @@ async def test_redis_cache_miss_triggers_fetch_and_setex():
     redis_mock.setex.assert_awaited_once()
     args = redis_mock.setex.await_args.args
     assert args[0] == "corp_code_map:v1"
-    assert args[1] == 60 * 60 * 24 * 30  # 30일 TTL
+    assert args[1] == 60 * 60 * 24 * 7  # 7일 TTL — 신규 상장 1주 이내 반영
     assert json.loads(args[2]) == {"005930": "00126380"}
 
 
