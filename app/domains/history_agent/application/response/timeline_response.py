@@ -25,7 +25,7 @@ class HypothesisResult(BaseModel):
 class TimelineEvent(BaseModel):
     title: str                           # AI 생성 이벤트 타이틀
     date: date
-    category: str   # PRICE | CORPORATE | ANNOUNCEMENT | MACRO | NEWS
+    category: str   # CORPORATE | ANNOUNCEMENT | MACRO  (PRICE 는 §13.4 에서 철거, NEWS 는 미생성)
     type: str
     detail: str
     source: Optional[str] = None
