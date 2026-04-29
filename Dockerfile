@@ -16,3 +16,14 @@ COPY . .
 
 # 4. 실행
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# PYTHONPATH 지정 (루트 전체)
+ENV PYTHONPATH=/app
+
+EXPOSE 33333
+
+# MySQL, Redis, PostgreSQL 모두 준비된 후 실행
+CMD ["/wait-for-it.sh", "mysql:3306", "--", \
+     "/wait-for-it.sh", "redis:6379", "--", \
+     "/wait-for-it.sh", "postgres:5432", "--", \
+     "python", "-m", "main"]
