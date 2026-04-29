@@ -125,9 +125,8 @@ class NaverFinanceDiscussionClient(SnsCollectorPort):
 
         resp.raise_for_status()
 
-        # 네이버 구형 페이지 — EUC-KR 디코딩
-        content = resp.content.decode("euc-kr", errors="replace")
-        soup = BeautifulSoup(content, "html.parser")
+        # 네이버 구형 페이지 — EUC-KR 디코딩 (raw bytes 그대로 넘겨 BS4가 처리)
+        soup = BeautifulSoup(resp.content, "html.parser", from_encoding="euc-kr")
 
         return self._parse_board_table(soup, ticker)
 

@@ -16,8 +16,12 @@ from app.domains.news.application.port.ticker_keyword_resolver_port import Ticke
 from app.domains.sentiment.application.port.sns_post_repository_port import SnsPostRepositoryPort
 from app.domains.sentiment.application.port.sns_signal_analysis_port import SnsSignalAnalysisPort
 from app.domains.sentiment.application.response.analyze_sns_signal_response import SnsSignalResult
+from app.domains.sentiment.application.usecase.collect_sns_posts_usecase import CollectSnsPostsUseCase
 
 logger = logging.getLogger(__name__)
+
+# 게시물 부족 시 자동 수집 트리거 임계값
+_MIN_POSTS_FOR_ANALYSIS = 5
 
 
 class AnalyzeSnsSignalUseCase:
@@ -26,10 +30,12 @@ class AnalyzeSnsSignalUseCase:
         repository: SnsPostRepositoryPort,
         analysis_port: SnsSignalAnalysisPort,
         keyword_resolver: TickerKeywordResolverPort,
+        collect_usecase: CollectSnsPostsUseCase | None = None,
     ):
         self._repository = repository
         self._analysis_port = analysis_port
         self._keyword_resolver = keyword_resolver
+        self._collect_usecase = collect_usecase
 
     async def execute(
         self,
@@ -37,6 +43,19 @@ class AnalyzeSnsSignalUseCase:
         lookback_limit: int = 100,
     ) -> SnsSignalResult:
         start_ms = time.monotonic()
+
+        # [신규] 게시물 부족 시 자동 수집 트리거 (collect_usecase 주입된 경우만)
+        if self._collect_usecase:
+            current_count = await self._repository.count_by_ticker(ticker)
+            if current_count < _MIN_POSTS_FOR_ANALYSIS:
+                logger.info(
+                    "[Sentiment] 게시물 부족 (%d개 < %d), 자동 수집 트리거 ticker=%s",
+                    current_count, _MIN_POSTS_FOR_ANALYSIS, ticker,
+                )
+                try:
+                    await self._collect_usecase.execute(ticker=ticker, limit_per_platform=20)
+                except Exception as e:
+                    logger.warning("[Sentiment] 자동 수집 실패 (분석 계속 진행): %s", e)
 
         # 회사명 조회 (GPT 프롬프트 품질 개선용)
         keywords = await self._keyword_resolver.resolve(ticker)

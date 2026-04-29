@@ -1,8 +1,10 @@
+import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.response.base_response import BaseResponse
 from app.domains.news.adapter.outbound.ticker_keyword_resolver import TickerKeywordResolver
+from app.domains.sentiment.adapter.outbound.cache.sns_signal_cache import SnsSignalResultCache
 from app.domains.sentiment.adapter.outbound.external.naver_finance_discussion_client import (
     NaverFinanceDiscussionClient,
 )
@@ -31,6 +33,7 @@ from app.domains.sentiment.application.usecase.collect_sns_posts_usecase import 
 from app.domains.stock.adapter.outbound.persistence.stock_repository_impl import (
     StockRepositoryImpl,
 )
+from app.infrastructure.cache.redis_client import get_redis
 from app.infrastructure.config.settings import get_settings
 from app.infrastructure.database.vector_database import get_vector_db
 
@@ -62,19 +65,42 @@ async def collect_sns_posts(
 async def analyze_sns_signal(
     request: AnalyzeSnsSignalRequest,
     db: AsyncSession = Depends(get_vector_db),
+    redis: aioredis.Redis = Depends(get_redis),
 ):
     """DB의 최근 게시물 → GPT-4o-mini 감정분석 → SnsSignalResult 반환."""
+    cache = SnsSignalResultCache(redis)
+
+    # [1] 캐시 조회 - hit 시 GPT 호출 없이 즉시 반환
+    cached = await cache.get(request.ticker)
+    if cached:
+        return BaseResponse.ok(data=cached)
+
+    # [2] miss - 의존성 조립 후 분석
     repository = SnsPostRepositoryImpl(db)
+
+    # collectors 조립 (collect 엔드포인트와 동일 패턴)
+    reddit = RedditClient()
+    collectors = []
+    if reddit.is_available():
+        collectors.append(reddit)
+    collectors.append(NaverFinanceDiscussionClient())   # API 키 불필요, 항상 추가
+    collectors.append(TossCommunityClient())            # is_available=False → gather에서 skip됨
+    collect_usecase = CollectSnsPostsUseCase(collectors=collectors, repository=repository)
 
     settings = get_settings()
     analysis_port = OpenAISnsSignalAdapter(api_key=settings.openai_api_key)
-
     keyword_resolver = TickerKeywordResolver(StockRepositoryImpl())
 
     usecase = AnalyzeSnsSignalUseCase(
         repository=repository,
         analysis_port=analysis_port,
         keyword_resolver=keyword_resolver,
+        collect_usecase=collect_usecase,  # 자동 collect 트리거용
     )
     result = await usecase.execute(request.ticker, request.lookback_limit)
-    return BaseResponse.ok(data=result.to_dict())
+
+    # [3] 캐시 저장 후 반환
+    result_dict = result.to_dict()
+    await cache.set(request.ticker, result_dict)
+
+    return BaseResponse.ok(data=result_dict)
