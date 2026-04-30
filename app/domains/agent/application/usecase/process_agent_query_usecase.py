@@ -10,6 +10,7 @@ from app.domains.agent.application.port.integrated_analysis_repository_port impo
 )
 from app.domains.agent.application.port.llm_synthesis_port import LlmSynthesisPort
 from app.domains.agent.application.port.news_agent_port import NewsAgentPort
+from app.domains.agent.application.port.sentiment_agent_port import SentimentAgentPort
 from app.domains.agent.application.request.agent_query_request import AgentQueryRequest
 from app.domains.agent.application.response.agent_query_response import (
     AgentQueryResponse,
@@ -38,12 +39,14 @@ class ProcessAgentQueryUseCase:
         news_agent: NewsAgentPort,
         disclosure_agent: DisclosureAgentPort,
         finance_agent: FinanceAgentPort,
+        sentiment_agent: SentimentAgentPort,
         llm_synthesis: LlmSynthesisPort,
         repository: Optional[IntegratedAnalysisRepositoryPort] = None,
     ) -> None:
         self._news = news_agent
         self._disclosure = disclosure_agent
         self._finance = finance_agent
+        self._sentiment = sentiment_agent
         self._llm_synthesis = llm_synthesis
         self._repository = repository
 
@@ -58,11 +61,12 @@ class ProcessAgentQueryUseCase:
             if cached:
                 return self._from_cached(cached, session_id)
 
-        # 2. 3개 서브에이전트 병렬 호출 (하나 실패해도 계속)
-        news_r, disclosure_r, finance_r = await asyncio.gather(
+        # 2. 4개 서브에이전트 병렬 호출 (하나 실패해도 계속)
+        news_r, disclosure_r, finance_r, sentiment_r = await asyncio.gather(
             self._news.analyze(ticker, request.query),
             self._disclosure.analyze(ticker),
             self._finance.analyze(ticker, request.query),
+            self._sentiment.analyze(ticker, request.query),
             return_exceptions=True,
         )
 
@@ -70,6 +74,7 @@ class ProcessAgentQueryUseCase:
             self._coerce(news_r, "news"),
             self._coerce(disclosure_r, "disclosure"),
             self._coerce(finance_r, "finance"),
+            self._coerce(sentiment_r, "sentiment"),
         ]
 
         # 3. 시그널 가중 집계

@@ -20,6 +20,9 @@ from app.domains.agent.adapter.outbound.external.langgraph_finance_agent_provide
 from app.domains.agent.adapter.outbound.external.news_sub_agent_adapter import (
     NewsSubAgentAdapter,
 )
+from app.domains.agent.adapter.outbound.external.sentiment_sub_agent_adapter import (
+    SentimentSubAgentAdapter,
+)
 from app.domains.agent.adapter.outbound.external.openai_synthesis_client import (
     OpenAISynthesisClient,
 )
@@ -129,6 +132,7 @@ async def query_agent(
         news_agent=NewsSubAgentAdapter(db=db, api_key=settings.openai_api_key),
         disclosure_agent=DisclosureSubAgentAdapter(),
         finance_agent=FinanceSubAgentAdapter(),
+        sentiment_agent=SentimentSubAgentAdapter(db=db, api_key=settings.openai_api_key),  # SNS 감정분석 서브에이전트
         llm_synthesis=llm_synthesis,
         repository=repository,
     )

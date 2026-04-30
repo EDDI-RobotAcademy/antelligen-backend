@@ -31,7 +31,7 @@ class SubAgentResponse(BaseModel):
     @field_validator("agent_name")
     @classmethod
     def validate_agent_name(cls, v: str) -> str:
-        allowed = {"stock", "news", "finance", "disclosure"}
+        allowed = {"stock", "news", "finance", "disclosure", "sentiment"}
         if v not in allowed:
             raise ValueError(
                 f"허용되지 않는 에이전트입니다: {v}. "
