@@ -229,6 +229,14 @@ async def lifespan(application: FastAPI):
             "Corp earnings bootstrap failed (server continues normally): %s", str(e)
         )
 
+    # Kiwi 형태소 분석기 미리 초기화 (첫 요청 타임아웃 방지)
+    try:
+        from app.domains.market_analysis.adapter.outbound.persistence.market_context_repository_impl import _get_kiwi
+        _get_kiwi()
+        logging.getLogger(__name__).info("[Startup] Kiwi 초기화 완료")
+    except Exception as e:
+        logging.getLogger(__name__).warning("[Startup] Kiwi 초기화 실패 (계속 진행): %s", e)
+
     from app.infrastructure.scheduler.disclosure_scheduler import create_disclosure_scheduler
 
     scheduler = create_disclosure_scheduler()
