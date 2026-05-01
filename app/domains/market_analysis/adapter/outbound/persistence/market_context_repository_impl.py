@@ -1,5 +1,5 @@
 from collections import Counter
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,16 @@ from app.domains.market_video.infrastructure.orm.video_comment_orm import VideoC
 from app.domains.stock_theme.infrastructure.orm.stock_theme_orm import StockThemeOrm
 
 _STOP_WORDS = {"있다", "없다", "하다", "이다", "되다", "것", "수", "등", "및", "그", "이", "저", "를", "을", "은", "는"}
+
+_kiwi: Optional[object] = None
+
+
+def _get_kiwi():
+    global _kiwi
+    if _kiwi is None:
+        from kiwipiepy import Kiwi
+        _kiwi = Kiwi()
+    return _kiwi
 
 
 class MarketContextRepositoryImpl(MarketContextPort):
@@ -22,8 +32,7 @@ class MarketContextRepositoryImpl(MarketContextPort):
         contents = result.scalars().all()
 
         try:
-            from kiwipiepy import Kiwi
-            kiwi = Kiwi()
+            kiwi = _get_kiwi()
             counter: Counter = Counter()
             for content in contents:
                 tokens = kiwi.tokenize(content)
@@ -35,7 +44,7 @@ class MarketContextRepositoryImpl(MarketContextPort):
             return []
 
     async def get_stock_themes(self) -> List[StockThemeItem]:
-        stmt = select(StockThemeOrm)
+        stmt = select(StockThemeOrm).limit(500)
         result = await self._db.execute(stmt)
         orm_list = result.scalars().all()
         return [
