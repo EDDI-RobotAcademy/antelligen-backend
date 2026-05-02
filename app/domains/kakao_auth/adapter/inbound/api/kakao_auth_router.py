@@ -121,5 +121,10 @@ async def request_access_token_after_redirection(
         )
         return response
 
+    except AppException:
+        raise
     except ValueError as e:
         raise AppException(status_code=400, message=str(e))
+    except Exception as e:
+        logger.exception("[Kakao 콜백 오류] 예상치 못한 에러: %s", type(e).__name__)
+        raise AppException(status_code=500, message=f"로그인 처리 중 오류가 발생했습니다: {type(e).__name__}: {e}")
