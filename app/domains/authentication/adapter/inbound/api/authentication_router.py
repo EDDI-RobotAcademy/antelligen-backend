@@ -22,8 +22,8 @@ async def get_me(
     db: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),
 ):
-    # Cookie에서 추출 (temp_token → user_token 순서)
-    token = request.cookies.get("temp_token") or request.cookies.get("user_token")
+    # Cookie에서 추출 (user_token → temp_token 순서: 이미 가입된 사용자 우선)
+    token = request.cookies.get("user_token") or request.cookies.get("temp_token")
 
     # Authorization 헤더에서 추출
     if not token and authorization and authorization.startswith("Bearer "):

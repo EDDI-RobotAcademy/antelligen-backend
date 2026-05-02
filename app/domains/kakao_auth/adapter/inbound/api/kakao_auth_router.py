@@ -96,6 +96,7 @@ async def request_access_token_after_redirection(
                 samesite="none" if is_production else "lax",
                 secure=is_production,
             )
+            response.delete_cookie(key="temp_token")
             return response
 
         # 미가입 회원 — 임시 토큰 발급

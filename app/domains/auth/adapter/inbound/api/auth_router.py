@@ -1,8 +1,12 @@
+from typing import Optional
+
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Cookie, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.response.base_response import BaseResponse
+from app.domains.account.adapter.outbound.cache.account_token_cache_impl import AccountTokenCacheImpl
 from app.domains.account.adapter.outbound.persistence.account_repository_impl import AccountRepositoryImpl
 from app.domains.account.adapter.outbound.persistence.account_save_repository_impl import AccountSaveRepositoryImpl
 from app.domains.account.adapter.outbound.persistence.stock_master_repository_impl import StockMasterRepositoryImpl
@@ -24,10 +28,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
 
 
-@router.post("/signup", response_model=BaseResponse[SignupResponse], status_code=201)
+@router.post("/signup", status_code=201)
 async def signup(
     request: SignupRequest,
     db: AsyncSession = Depends(get_db),
+    redis: aioredis.Redis = Depends(get_redis),
+    temp_token: Optional[str] = Cookie(default=None),
 ):
     """관심종목을 선택하여 회원가입한다. 인증 불필요."""
     usecase = SignupUseCase(
@@ -37,7 +43,26 @@ async def signup(
         watchlist_save_port=WatchlistRepositoryImpl(db),
     )
     result = await usecase.execute(request)
-    return BaseResponse.ok(data=result, message="회원가입이 완료되었습니다.")
+
+    token_cache = AccountTokenCacheImpl(redis, settings.session_ttl_seconds)
+    user_token_value = await token_cache.issue_user_token(account_id=result.account_id)
+
+    is_production = settings.env == "production"
+    response = JSONResponse(
+        content=BaseResponse.ok(data=result.model_dump(), message="회원가입이 완료되었습니다.").model_dump(),
+        status_code=201,
+    )
+    response.set_cookie(
+        key="user_token",
+        value=user_token_value,
+        httponly=True,
+        path="/",
+        max_age=settings.session_ttl_seconds,
+        samesite="none" if is_production else "lax",
+        secure=is_production,
+    )
+    response.delete_cookie(key="temp_token")
+    return response
 
 
 @router.post("/login")
